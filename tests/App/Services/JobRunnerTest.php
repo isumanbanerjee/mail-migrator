@@ -120,4 +120,25 @@ final class JobRunnerTest extends TestCase
         $this->assertSame(2, (int) $row2['copied'] + (int) $row2['skipped']);
         $this->assertSame(100, (int) $row2['percent']);
     }
+
+    public function test_mailbox_connection_failure_marks_job_failed_and_releases_lock(): void
+    {
+        [$pdo, $jobs] = $this->ctx();
+        $job = $this->job($jobs);
+        $factory = new class implements \App\Services\MailboxFactoryInterface {
+            public function forJob(array $job): array
+            {
+                throw new \RuntimeException('Connection failed: could not connect to imap.src');
+            }
+        };
+        $runner = new JobRunner($factory, $jobs, fn(int $id) => new MysqlLedger($pdo, $id), 50);
+
+        $state = $runner->run($job);
+        $this->assertSame('failed', $state);
+        $row = $jobs->find((int) $job['id'], 1);
+        $this->assertSame('failed', $row['state']);
+        $this->assertNotEmpty($row['last_error']);
+        $this->assertNull($row['worker_id']);
+        $this->assertNull($row['locked_at']);
+    }
 }

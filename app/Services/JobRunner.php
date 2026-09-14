@@ -32,39 +32,40 @@ final class JobRunner
     public function run(array $job): string
     {
         $jobId = (int) $job['id'];
-        $mb = $this->mailboxes->forJob($job);
-        /** @var LedgerInterface $ledger */
-        $ledger = ($this->ledgerFor)($jobId);
-        $options = json_decode((string) ($job['options'] ?? '{}'), true) ?: [];
-        $mapper = new FolderMapper((array) ($options['folder_map'] ?? []));
-        $logger = new Logger('error');
-        $migrator = new MessageMigrator($mb['writer'], $ledger, $logger);
-        $runner = new MigrationRunner($mb['reader'], $mb['writer'], $ledger, $mapper, $migrator, $logger, [
-            'dry_run' => ($job['mode'] ?? 'live') === 'dry_run',
-            'since' => $options['since'] ?? null,
-            'limit' => $options['limit'] ?? null,
-            'throttle_ms' => (int) ($options['throttle_ms'] ?? 0),
-        ]);
-
-        $start = ($this->clock)();
-        $saveCumulativeProgress = function (?string $currentFolder) use ($jobId, $ledger): void {
-            $summary = $ledger->summary();
-            $total = $summary['copied'] + $summary['skipped'] + $summary['failed'] + $summary['pending'];
-            $this->jobs->saveProgress($jobId, [
-                'total_messages' => $total, 'copied' => $summary['copied'], 'skipped' => $summary['skipped'],
-                'failed' => $summary['failed'], 'current_folder' => $currentFolder,
-                'percent' => $total > 0 ? (int) round(($summary['copied'] + $summary['skipped']) / $total * 100) : 0,
-            ]);
-        };
-        $progress = function (array $s) use ($jobId, $start, $saveCumulativeProgress): void {
-            $saveCumulativeProgress($s['folder'] ?? null);
-            $state = $this->jobs->currentState($jobId);
-            if ($state === 'paused') { throw new StopSignal('paused'); }
-            if ($state === 'canceled') { throw new StopSignal('canceled'); }
-            if (($this->clock)() - $start >= $this->timeBudgetSeconds) { throw new StopSignal('time'); }
-        };
 
         try {
+            $mb = $this->mailboxes->forJob($job);
+            /** @var LedgerInterface $ledger */
+            $ledger = ($this->ledgerFor)($jobId);
+            $options = json_decode((string) ($job['options'] ?? '{}'), true) ?: [];
+            $mapper = new FolderMapper((array) ($options['folder_map'] ?? []));
+            $logger = new Logger('error');
+            $migrator = new MessageMigrator($mb['writer'], $ledger, $logger);
+            $runner = new MigrationRunner($mb['reader'], $mb['writer'], $ledger, $mapper, $migrator, $logger, [
+                'dry_run' => ($job['mode'] ?? 'live') === 'dry_run',
+                'since' => $options['since'] ?? null,
+                'limit' => $options['limit'] ?? null,
+                'throttle_ms' => (int) ($options['throttle_ms'] ?? 0),
+            ]);
+
+            $start = ($this->clock)();
+            $saveCumulativeProgress = function (?string $currentFolder) use ($jobId, $ledger): void {
+                $summary = $ledger->summary();
+                $total = $summary['copied'] + $summary['skipped'] + $summary['failed'] + $summary['pending'];
+                $this->jobs->saveProgress($jobId, [
+                    'total_messages' => $total, 'copied' => $summary['copied'], 'skipped' => $summary['skipped'],
+                    'failed' => $summary['failed'], 'current_folder' => $currentFolder,
+                    'percent' => $total > 0 ? (int) round(($summary['copied'] + $summary['skipped']) / $total * 100) : 0,
+                ]);
+            };
+            $progress = function (array $s) use ($jobId, $start, $saveCumulativeProgress): void {
+                $saveCumulativeProgress($s['folder'] ?? null);
+                $state = $this->jobs->currentState($jobId);
+                if ($state === 'paused') { throw new StopSignal('paused'); }
+                if ($state === 'canceled') { throw new StopSignal('canceled'); }
+                if (($this->clock)() - $start >= $this->timeBudgetSeconds) { throw new StopSignal('time'); }
+            };
+
             $runner->run($progress);
             $saveCumulativeProgress(null);
             $this->jobs->systemTransition($jobId, 'completed');
