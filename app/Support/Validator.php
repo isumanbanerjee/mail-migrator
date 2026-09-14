@@ -36,6 +36,7 @@ final class Validator
                     'email' => $value === null || $value === '' || filter_var($value, FILTER_VALIDATE_EMAIL) !== false,
                     'int' => $value === null || $value === '' || filter_var($value, FILTER_VALIDATE_INT) !== false,
                     'min' => $value === null || $value === '' || (int) $value >= (int) $arg,
+                    'minlen' => $value === null || $value === '' || mb_strlen((string) $value) >= (int) $arg,
                     'max' => $value === null || $value === '' || (int) $value <= (int) $arg,
                     'in' => $value === null || $value === '' || in_array((string) $value, explode(',', (string) $arg), true),
                     'host' => $value === null || $value === '' || preg_match('/^[a-zA-Z0-9.\-]+$/', (string) $value) === 1,

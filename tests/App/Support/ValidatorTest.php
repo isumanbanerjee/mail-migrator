@@ -29,4 +29,14 @@ final class ValidatorTest extends TestCase
         $this->assertArrayHasKey('email', $v->errors());
         $this->assertArrayHasKey('port', $v->errors());
     }
+
+    public function test_minlen_rule(): void
+    {
+        $ok = Validator::make(['password' => 'secretpw'], ['password' => 'required|minlen:8']);
+        $this->assertTrue($ok->passes());
+
+        $short = Validator::make(['password' => 'short'], ['password' => 'required|minlen:8']);
+        $this->assertFalse($short->passes());
+        $this->assertArrayHasKey('password', $short->errors());
+    }
 }
