@@ -21,3 +21,6 @@ docs/superpowers/
 # Environment variables
 .env
 public/assets/*.map
+
+# SDD workspace scratch (subagent-driven-development)
+.superpowers/
