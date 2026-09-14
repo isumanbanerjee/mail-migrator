@@ -59,12 +59,17 @@ final class JobController
         if ($job === null) {
             return Response::html('Not Found', 404);
         }
+        $options = json_decode((string) ($job['options'] ?? '{}'), true) ?: [];
         $old = [
             'name' => $job['name'], 'mode' => $job['mode'],
             'source_host' => $job['source_host'], 'source_port' => $job['source_port'], 'source_encryption' => $job['source_encryption'],
             'source_username' => $this->enc->decrypt($job['source_username_enc']),
             'dest_host' => $job['dest_host'], 'dest_port' => $job['dest_port'], 'dest_encryption' => $job['dest_encryption'],
             'dest_username' => $this->enc->decrypt($job['dest_username_enc']),
+            'batch_size' => $options['batch_size'] ?? null,
+            'throttle_ms' => $options['throttle_ms'] ?? null,
+            'since' => $options['since'] ?? null,
+            'limit' => $options['limit'] ?? null,
         ];
         return Response::html($this->view->render('jobs/form', [
             'title' => 'Edit Job', 'errors' => [], 'job' => $job, 'old' => $old, 'session' => $this->session,

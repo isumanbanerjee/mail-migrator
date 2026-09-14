@@ -32,4 +32,14 @@ final class Config
 
     public function appKey(): string { return (string) $this->get('key', ''); }
     public function db(): array { return (array) $this->get('db', []); }
+
+    public function validate(): void
+    {
+        if ($this->appKey() === '') {
+            throw new \RuntimeException('APP_KEY is missing — generate one and set it in .env');
+        }
+        if ((string) ($this->db()['driver'] ?? '') === '') {
+            throw new \RuntimeException('db.driver is missing — set DB_DRIVER (or config/app.php db.driver)');
+        }
+    }
 }

@@ -79,4 +79,50 @@ final class JobControllerTest extends FeatureTestCase
     {
         $this->assertSame(302, $this->get('/jobs/create')->status()); // redirect to /login
     }
+
+    public function test_update_does_not_silently_reset_mode_encryption_or_options(): void
+    {
+        $uid = $this->registerAndLogin();
+        $options = json_encode(['batch_size' => 50, 'throttle_ms' => 300, 'since' => null, 'limit' => 10], JSON_UNESCAPED_SLASHES);
+        $jobId = $this->app->jobs->create($uid, [
+            'name' => 'Original Name', 'mode' => 'dry_run',
+            'source_host' => 'imap.src', 'source_port' => 993, 'source_encryption' => 'tls',
+            'source_username_enc' => $this->app->encryptor->encrypt('srcuser'),
+            'source_password_enc' => $this->app->encryptor->encrypt('srcpass'),
+            'dest_host' => 'imap.dst', 'dest_port' => 993, 'dest_encryption' => 'tls',
+            'dest_username_enc' => $this->app->encryptor->encrypt('dstuser'),
+            'dest_password_enc' => $this->app->encryptor->encrypt('dstpass'),
+            'options' => $options,
+        ]);
+
+        // Simulate the edit form: GET the edit page and read back the $old values it would prefill.
+        $editRes = $this->get("/jobs/{$jobId}/edit");
+        $this->assertSame(200, $editRes->status());
+        $body = $editRes->body();
+        // Sanity: form should reflect the non-default values so a resubmit round-trips them.
+        $this->assertStringContainsString('dry_run', $body);
+        $this->assertStringContainsString('value="50"', $body);
+        $this->assertStringContainsString('value="10"', $body);
+
+        // POST an update re-supplying the same form fields as the edit form would (only name changed).
+        $res = $this->post("/jobs/{$jobId}", [
+            'name' => 'Renamed Job',
+            'mode' => 'dry_run',
+            'source_host' => 'imap.src', 'source_port' => '993', 'source_encryption' => 'tls',
+            'source_username' => 'srcuser', 'source_password' => '',
+            'dest_host' => 'imap.dst', 'dest_port' => '993', 'dest_encryption' => 'tls',
+            'dest_username' => 'dstuser', 'dest_password' => '',
+            'batch_size' => '50', 'throttle_ms' => '300', 'since' => '', 'limit' => '10',
+        ]);
+        $this->assertSame(302, $res->status());
+
+        $job = $this->app->jobs->find($jobId, $uid);
+        $this->assertSame('Renamed Job', $job['name']);
+        $this->assertSame('dry_run', $job['mode']);
+        $this->assertSame('tls', $job['source_encryption']);
+        $this->assertSame('tls', $job['dest_encryption']);
+        $decodedOptions = json_decode((string) $job['options'], true);
+        $this->assertSame(50, $decodedOptions['batch_size']);
+        $this->assertSame(10, $decodedOptions['limit']);
+    }
 }

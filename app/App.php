@@ -35,6 +35,7 @@ final class App
     {
         $app = new self();
         $app->config = $overrides['config'] ?? Config::load($basePath);
+        $app->config->validate();
         $app->pdo = $overrides['pdo'] ?? Database::make($app->config->db());
         $app->session = $overrides['session'] ?? Session::fromPhp();
         $app->encryptor = new Encryptor($app->config->appKey());

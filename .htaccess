@@ -5,4 +5,4 @@
 </IfModule>
 
 # Deny direct web access to sensitive paths
-RedirectMatch 404 ^/(app|src|config|database|tests|vendor|docs|bin|\.env|composer\.(json|lock))
+RedirectMatch 404 ^/(app|src|config|database|tests|vendor|docs|bin|\.git|\.env|composer\.(json|lock))
