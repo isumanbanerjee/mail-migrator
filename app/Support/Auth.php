@@ -18,7 +18,10 @@ final class Auth
 
     public function register(string $name, string $email, string $password): int
     {
-        $id = $this->users->create($name, $email, password_hash($password, PASSWORD_ARGON2ID));
+        // Prefer argon2id, but fall back to bcrypt on PHP builds compiled
+        // without argon2 support (password_verify auto-detects the algorithm).
+        $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;
+        $id = $this->users->create($name, $email, password_hash($password, $algo));
         $this->session->put('_uid', $id);
         $this->session->regenerateId();
         return $id;
