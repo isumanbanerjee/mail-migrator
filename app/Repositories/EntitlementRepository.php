@@ -24,8 +24,16 @@ final class EntitlementRepository
         $stmt = $this->pdo->prepare('SELECT 1 FROM entitlements WHERE user_id=:u');
         $stmt->execute([':u' => $userId]);
         if ($stmt->fetchColumn() === false) {
-            $this->pdo->prepare('INSERT INTO entitlements (user_id, updated_at) VALUES (:u,:t)')
-                ->execute([':u' => $userId, ':t' => date('Y-m-d H:i:s')]);
+            try {
+                $this->pdo->prepare('INSERT INTO entitlements (user_id, updated_at) VALUES (:u,:t)')
+                    ->execute([':u' => $userId, ':t' => date('Y-m-d H:i:s')]);
+            } catch (\PDOException $e) {
+                // Ignore duplicate-key errors; the row was created by concurrent process
+                // SQLSTATE 23000 (integrity constraint), 19 (SQLite constraint)
+                if (!in_array((string) $e->getCode(), ['23000', '19'], true)) {
+                    throw $e;
+                }
+            }
         }
     }
 
@@ -46,10 +54,8 @@ final class EntitlementRepository
     public function deductCredits(int $userId, int $n): void
     {
         $this->ensure($userId);
-        $current = (int) $this->for($userId)['credits'];
-        $next = max(0, $current - $n);
-        $this->pdo->prepare('UPDATE entitlements SET credits=:c, updated_at=:t WHERE user_id=:u')
-            ->execute([':c' => $next, ':t' => date('Y-m-d H:i:s'), ':u' => $userId]);
+        $this->pdo->prepare('UPDATE entitlements SET credits = CASE WHEN credits > :n THEN credits - :n ELSE 0 END, updated_at = :t WHERE user_id = :u')
+            ->execute([':n' => $n, ':t' => date('Y-m-d H:i:s'), ':u' => $userId]);
     }
 
     public function extendSubscription(int $userId, string $until): void
