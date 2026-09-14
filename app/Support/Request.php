@@ -12,6 +12,7 @@ final class Request
         private array $post,
         private array $cookies,
         private array $server,
+        private string $rawBody = '',
     ) {}
 
     public static function fromGlobals(): self
@@ -21,6 +22,7 @@ final class Request
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
             $path, $_GET, $_POST, $_COOKIE, $_SERVER,
+            (string) file_get_contents('php://input'),
         );
     }
 
@@ -31,5 +33,7 @@ final class Request
     public function query(string $key, mixed $default = null): mixed { return $this->query[$key] ?? $default; }
     public function cookie(string $key, mixed $default = null): mixed { return $this->cookies[$key] ?? $default; }
     public function server(string $key, mixed $default = null): mixed { return $this->server[$key] ?? $default; }
+    public function serverAll(): array { return $this->server; }
     public function all(): array { return $this->post; }
+    public function rawBody(): string { return $this->rawBody; }
 }

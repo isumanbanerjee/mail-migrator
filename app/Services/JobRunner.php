@@ -24,6 +24,7 @@ final class JobRunner
         callable $ledgerFor,
         private int $timeBudgetSeconds = 50,
         ?callable $clock = null,
+        private ?EntitlementResolver $entitlementResolver = null,
     ) {
         $this->ledgerFor = $ledgerFor;
         $this->clock = $clock ?? static fn (): int => time();
@@ -32,6 +33,7 @@ final class JobRunner
     public function run(array $job): string
     {
         $jobId = (int) $job['id'];
+        $startCopied = (int) ($job['copied'] ?? 0);
 
         try {
             $mb = $this->mailboxes->forJob($job);
@@ -70,6 +72,10 @@ final class JobRunner
             $saveCumulativeProgress(null);
             $this->jobs->systemTransition($jobId, 'completed');
             $this->jobs->releaseLock($jobId);
+            if ($this->entitlementResolver !== null) {
+                $copiedThisRun = $ledger->summary()['copied'] - $startCopied;
+                $this->entitlementResolver->consumeCredit((int) $job['user_id'], $copiedThisRun);
+            }
             return 'completed';
         } catch (StopSignal $s) {
             return $this->handleStop($jobId, $s->reason);

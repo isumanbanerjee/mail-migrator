@@ -220,3 +220,105 @@ WORKER_MAX_SECONDS=50
 Note: the CLI (`bin/worker.php`) runs outside the web server's
 `max_execution_time` limit, so long-running migrations (even >30 seconds per
 message) are safe as long as they stay within the `WORKER_MAX_SECONDS` budget.
+
+## 10. Billing / paywall
+
+The admin can gate migration jobs behind a free quota plus paid entitlements
+(one-time unlock, credit packs, or a monthly subscription). This is entirely
+optional — leave `PAYWALL_ENABLED=false` to run the tool as an unrestricted
+internal/self-hosted tool.
+
+### Enable the paywall and set free limits
+
+In `.env`:
+
+```
+PAYWALL_ENABLED=true
+CURRENCY=USD
+FREE_JOB_LIMIT=1
+FREE_EMAIL_LIMIT=100
+```
+
+`FREE_JOB_LIMIT` and `FREE_EMAIL_LIMIT` bound what an account can do before it
+needs an entitlement (unlimited, active subscription, or credits) to run
+another job. With `PAYWALL_ENABLED=false`, quota checks are inert and every
+account is treated as unlimited regardless of these values.
+
+### Enable each pricing model
+
+Each product is independently toggled and priced; enable only the ones you
+intend to sell:
+
+```
+BILLING_ONE_TIME_ENABLED=true
+PRICE_AMOUNT=19.00
+
+BILLING_CREDITS_ENABLED=false
+CREDIT_PACK_SIZE=500
+CREDIT_PACK_PRICE=5.00
+
+BILLING_SUBSCRIPTION_ENABLED=false
+SUBSCRIPTION_PRICE=9.00
+```
+
+- **One-time** (`one_time`) grants permanent unlimited access on payment.
+- **Credit pack** (`credit_pack`) adds `CREDIT_PACK_SIZE` emails' worth of
+  credits, consumed as jobs copy messages.
+- **Subscription** (`subscription`) extends `entitlements.subscription_until`
+  by one month per successful payment/renewal.
+
+### Configure gateway keys
+
+At least one gateway must be configured for checkout to work:
+
+```
+PAYPAL_CLIENT_ID=
+PAYPAL_SECRET=
+PAYPAL_WEBHOOK_ID=
+PAYPAL_BASE=https://api-m.paypal.com
+
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+```
+
+Use `PAYPAL_BASE=https://api-m.sandbox.paypal.com` while testing against a
+PayPal sandbox account; switch to the live base URL (`https://api-m.paypal.com`)
+only once sandbox checkouts and webhooks are verified end-to-end. Razorpay
+does not have a separate base URL — use test-mode keys during development and
+live keys once you're ready to go live.
+
+### Register webhook URLs
+
+Entitlements are granted **only** from signature-verified webhook deliveries
+— never from the browser redirect after checkout — so each gateway must be
+configured to call your server directly:
+
+- PayPal: `https://DOMAIN/webhooks/paypal`
+- Razorpay: `https://DOMAIN/webhooks/razorpay`
+
+In each gateway's dashboard, register the corresponding URL under
+Webhooks/Notifications and subscribe to payment-captured/completed events.
+These routes are exempt from the app's CSRF check (they're server-to-server,
+not a browser form submission) but every request is verified against the
+gateway's signature (`RAZORPAY_WEBHOOK_SECRET` via local HMAC, or PayPal's
+`verify-webhook-signature` API using `PAYPAL_WEBHOOK_ID`) before anything is
+recorded or granted; requests with a missing or invalid signature are
+rejected with `400` and no entitlement change.
+
+Make sure outbound-to-inbound webhook delivery can actually reach the
+server: shared hosts occasionally block or rate-limit unfamiliar inbound
+traffic, and the same port/firewall caveats from step 7 can apply here in
+reverse (the gateway calling *you*, not you calling out). Use each gateway's
+dashboard "send test webhook" tool and confirm you see a `200 {"ok":true}`
+response before relying on live payments.
+
+### Sandbox testing is the go-live check
+
+Before enabling this for real customers: run a full sandbox purchase for each
+enabled product through both configured gateways, confirm the webhook fires,
+confirm the entitlement lands correctly in the `entitlements` table (check
+`unlimited`, `credits`, or `subscription_until` as appropriate), and confirm a
+duplicate/retried webhook delivery for the same payment does not double-grant
+(idempotency is keyed on gateway + payment reference). Only flip gateway keys
+and base URLs to live/production values once that full loop is verified.

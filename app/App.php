@@ -110,6 +110,11 @@ final class App
         $this->router->add('POST', '/billing/checkout', fn(Request $r) => $billingC->checkout($r), true);
         $this->router->add('GET', '/billing/success', fn(Request $r) => $billingC->success($r), true);
         $this->router->add('GET', '/billing/cancel', fn(Request $r) => $billingC->cancel($r), true);
+
+        $webhookC = new \App\Http\Controllers\WebhookController(
+            $this->gatewayFactory, $this->payments, $this->entitlements, $this->billingConfig,
+        );
+        $this->router->add('POST', '/webhooks/{gateway}', fn(Request $r, array $v) => $webhookC->handle($r, $v));
     }
 
     public function handle(Request $req): Response
@@ -124,7 +129,7 @@ final class App
         if ($d['auth'] && !$this->auth->check()) {
             return Response::redirect('/login');
         }
-        if ($req->isPost() && !Csrf::verify($this->session, (string) $req->input('_csrf'))) {
+        if ($req->isPost() && !str_starts_with($req->path(), '/webhooks/') && !Csrf::verify($this->session, (string) $req->input('_csrf'))) {
             return Response::html('CSRF token mismatch', 419);
         }
         return ($d['handler'])($req, $d['vars']);
