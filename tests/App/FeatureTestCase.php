@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Tests;
 
 use App\App;
+use App\Support\BillingConfig;
 use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
@@ -20,6 +21,9 @@ abstract class FeatureTestCase extends TestCase
     protected Session $session;
     protected FakeConnectionChecker $checker;
 
+    /** Default keeps the paywall off so existing feature tests are unaffected. */
+    protected array $billingEnv = ['PAYWALL_ENABLED' => 'false'];
+
     protected function setUp(): void
     {
         $pdo = Database::make(['driver' => 'sqlite', 'database' => ':memory:']);
@@ -35,6 +39,7 @@ abstract class FeatureTestCase extends TestCase
             'session' => $this->session,
             'config' => $config,
             'connectionChecker' => $this->checker,
+            'billingConfig' => new BillingConfig($this->billingEnv),
         ]);
     }
 

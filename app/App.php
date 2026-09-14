@@ -3,11 +3,19 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Repositories\EntitlementRepository;
 use App\Repositories\JobRepository;
+use App\Repositories\PaymentRepository;
 use App\Repositories\UserRepository;
 use App\Services\ConnectionTester;
+use App\Services\EntitlementResolver;
 use App\Services\ImapConnectionChecker;
+use App\Services\MeteringService;
+use App\Services\Payments\CurlHttpClient;
+use App\Services\Payments\GatewayFactory;
+use App\Services\Payments\HttpClientInterface;
 use App\Support\Auth;
+use App\Support\BillingConfig;
 use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
@@ -30,6 +38,13 @@ final class App
     public View $view;
     public ConnectionTester $tester;
     public Router $router;
+    public BillingConfig $billingConfig;
+    public HttpClientInterface $httpClient;
+    public GatewayFactory $gatewayFactory;
+    public PaymentRepository $payments;
+    public EntitlementRepository $entitlements;
+    public MeteringService $metering;
+    public EntitlementResolver $resolver;
 
     public static function boot(string $basePath, array $overrides = []): self
     {
@@ -45,6 +60,13 @@ final class App
         $app->view = new View($basePath . '/views', $app->auth);
         $checker = $overrides['connectionChecker'] ?? new ImapConnectionChecker();
         $app->tester = new ConnectionTester($checker);
+        $app->billingConfig = $overrides['billingConfig'] ?? BillingConfig::fromEnv();
+        $app->httpClient = $overrides['httpClient'] ?? new CurlHttpClient();
+        $app->gatewayFactory = new GatewayFactory($app->httpClient, $app->billingConfig);
+        $app->payments = new PaymentRepository($app->pdo);
+        $app->entitlements = new EntitlementRepository($app->pdo);
+        $app->metering = new MeteringService($app->pdo);
+        $app->resolver = new EntitlementResolver($app->billingConfig, $app->entitlements, $app->metering);
         $app->router = new Router();
         $app->registerRoutes();
         return $app;
@@ -63,7 +85,7 @@ final class App
         $this->router->add('POST', '/login', fn(Request $r) => $authC->login($r));
         $this->router->add('POST', '/logout', fn(Request $r) => $authC->logout($r), true);
 
-        $jobC = new \App\Http\Controllers\JobController($this->jobs, $this->encryptor, $this->tester, $this->auth, $this->view, $this->session);
+        $jobC = new \App\Http\Controllers\JobController($this->jobs, $this->encryptor, $this->tester, $this->auth, $this->view, $this->session, $this->resolver, $this->billingConfig);
         $this->router->add('GET', '/jobs/create', fn(Request $r) => $jobC->create($r), true);
         $this->router->add('POST', '/jobs', fn(Request $r) => $jobC->store($r), true);
         $this->router->add('POST', '/jobs/test-connection', fn(Request $r) => $jobC->testConnection($r), true);
@@ -79,6 +101,15 @@ final class App
         $dashC = new \App\Http\Controllers\DashboardController($this->jobs, $this->auth, $this->view, $this->session);
         $this->router->add('GET', '/dashboard', fn(Request $r) => $dashC->index($r), true);
         $this->router->add('GET', '/jobs/{id:\d+}/progress', fn(Request $r, array $v) => $dashC->progress($r, $v), true);
+
+        $billingC = new \App\Http\Controllers\BillingController(
+            $this->billingConfig, $this->gatewayFactory, $this->payments, $this->entitlements,
+            $this->metering, $this->resolver, $this->auth, $this->view, $this->session,
+        );
+        $this->router->add('GET', '/billing', fn(Request $r) => $billingC->index($r), true);
+        $this->router->add('POST', '/billing/checkout', fn(Request $r) => $billingC->checkout($r), true);
+        $this->router->add('GET', '/billing/success', fn(Request $r) => $billingC->success($r), true);
+        $this->router->add('GET', '/billing/cancel', fn(Request $r) => $billingC->cancel($r), true);
     }
 
     public function handle(Request $req): Response

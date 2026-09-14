@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 
 use App\Repositories\JobRepository;
 use App\Services\ConnectionTester;
+use App\Services\EntitlementResolver;
 use App\Support\Auth;
+use App\Support\BillingConfig;
 use App\Support\Encryptor;
 use App\Support\Request;
 use App\Support\Response;
@@ -23,6 +25,8 @@ final class JobController
         private Auth $auth,
         private View $view,
         private Session $session,
+        private EntitlementResolver $resolver,
+        private BillingConfig $billing,
     ) {}
 
     public function create(Request $req): Response
@@ -113,7 +117,27 @@ final class JobController
         'resume' => ['paused'],
     ];
 
-    public function queue(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'queue', 'queued'); }
+    public function queue(Request $req, array $vars): Response
+    {
+        $id = (int) $vars['id'];
+        $job = $this->mustFind($id);
+        if ($job === null) {
+            return Response::html('Not Found', 404);
+        }
+        if (!in_array($job['state'], self::ALLOWED['queue'], true)) {
+            return Response::redirect('/jobs/' . $id);
+        }
+        if ($this->billing->enabled()) {
+            $decision = $this->resolver->canRunJob($this->auth->userId());
+            if (!$decision['allowed']) {
+                $this->session->flash('error', 'You have reached your free usage limit. Please upgrade to continue.');
+                return Response::redirect('/billing');
+            }
+        }
+        $this->jobs->transition($id, $this->auth->userId(), 'queued');
+        return Response::redirect('/jobs/' . $id);
+    }
+
     public function cancel(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'cancel', 'canceled'); }
     public function pause(Request $req, array $vars): Response   { return $this->guarded((int) $vars['id'], 'pause', 'paused'); }
     public function resume(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'resume', 'queued'); }
