@@ -47,13 +47,17 @@ final class JobRunner
         ]);
 
         $start = ($this->clock)();
-        $progress = function (array $s) use ($jobId, $start): void {
-            $total = $s['copied'] + $s['skipped'] + $s['failed'] + ($s['would_copy'] ?? 0);
+        $saveCumulativeProgress = function (?string $currentFolder) use ($jobId, $ledger): void {
+            $summary = $ledger->summary();
+            $total = $summary['copied'] + $summary['skipped'] + $summary['failed'] + $summary['pending'];
             $this->jobs->saveProgress($jobId, [
-                'total_messages' => $total, 'copied' => $s['copied'], 'skipped' => $s['skipped'],
-                'failed' => $s['failed'], 'current_folder' => $s['folder'] ?? null,
-                'percent' => $total > 0 ? (int) round(($s['copied'] + $s['skipped']) / $total * 100) : 0,
+                'total_messages' => $total, 'copied' => $summary['copied'], 'skipped' => $summary['skipped'],
+                'failed' => $summary['failed'], 'current_folder' => $currentFolder,
+                'percent' => $total > 0 ? (int) round(($summary['copied'] + $summary['skipped']) / $total * 100) : 0,
             ]);
+        };
+        $progress = function (array $s) use ($jobId, $start, $saveCumulativeProgress): void {
+            $saveCumulativeProgress($s['folder'] ?? null);
             $state = $this->jobs->currentState($jobId);
             if ($state === 'paused') { throw new StopSignal('paused'); }
             if ($state === 'canceled') { throw new StopSignal('canceled'); }
@@ -62,6 +66,7 @@ final class JobRunner
 
         try {
             $runner->run($progress);
+            $saveCumulativeProgress(null);
             $this->jobs->systemTransition($jobId, 'completed');
             $this->jobs->releaseLock($jobId);
             return 'completed';

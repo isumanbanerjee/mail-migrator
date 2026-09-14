@@ -90,4 +90,34 @@ final class JobRunnerTest extends TestCase
         $this->assertSame('queued', $jobs->currentState((int) $job['id']));
         $this->assertNull($jobs->find((int) $job['id'], 1)['locked_at']); // lock released
     }
+
+    public function test_multi_tick_resume_reports_cumulative_progress(): void
+    {
+        [$pdo, $jobs] = $this->ctx();
+        $job = $this->job($jobs);
+        $writer = new InMemoryWriter();
+        $factory = new FakeMailboxFactory($this->reader(), $writer);
+        $ledgerFor = fn (int $id) => new MysqlLedger($pdo, $id);
+
+        // Tick 1: force a time-budget stop right after the first message.
+        $t = 1000;
+        $stopAfterFirst = function () use (&$t) { $t += 100; return $t; };
+        $runner1 = new JobRunner($factory, $jobs, $ledgerFor, 50, $stopAfterFirst);
+        $state1 = $runner1->run($job);
+        $this->assertSame('queued', $state1);
+        $row1 = $jobs->find((int) $job['id'], 1);
+        $this->assertSame(1, (int) $row1['copied']);
+
+        // Tick 2: re-fetch the job row, run again with a normal clock to completion.
+        $jobs->systemTransition((int) $job['id'], 'running');
+        $job2 = $jobs->find((int) $job['id'], 1);
+        $runner2 = new JobRunner($factory, $jobs, $ledgerFor, 50);
+        $state2 = $runner2->run($job2);
+
+        $this->assertSame('completed', $state2);
+        $this->assertSame('completed', $jobs->currentState((int) $job['id']));
+        $row2 = $jobs->find((int) $job['id'], 1);
+        $this->assertSame(2, (int) $row2['copied'] + (int) $row2['skipped']);
+        $this->assertSame(100, (int) $row2['percent']);
+    }
 }
