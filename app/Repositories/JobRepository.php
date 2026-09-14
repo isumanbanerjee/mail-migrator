@@ -70,4 +70,50 @@ final class JobRepository
         $stmt->execute([':s' => $state, ':u' => date('Y-m-d H:i:s'), ':id' => $id, ':user_id' => $userId]);
         return $stmt->rowCount() > 0;
     }
+
+    public function saveProgress(int $id, array $p): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE jobs SET total_messages=:t, copied=:c, skipped=:s, failed=:f, current_folder=:cf, percent=:p, updated_at=:u WHERE id=:id');
+        $stmt->execute([
+            ':t' => (int) ($p['total_messages'] ?? 0), ':c' => (int) ($p['copied'] ?? 0),
+            ':s' => (int) ($p['skipped'] ?? 0), ':f' => (int) ($p['failed'] ?? 0),
+            ':cf' => $p['current_folder'] ?? null, ':p' => (int) ($p['percent'] ?? 0),
+            ':u' => date('Y-m-d H:i:s'), ':id' => $id,
+        ]);
+    }
+
+    public function currentState(int $id): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT state FROM jobs WHERE id=:id');
+        $stmt->execute([':id' => $id]);
+        $v = $stmt->fetchColumn();
+        return $v === false ? null : (string) $v;
+    }
+
+    public function systemTransition(int $id, string $state, ?string $error = null): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE jobs SET state=:s, last_error=:e, updated_at=:u WHERE id=:id');
+        $stmt->execute([':s' => $state, ':e' => $error, ':u' => date('Y-m-d H:i:s'), ':id' => $id]);
+    }
+
+    public function releaseLock(int $id): void
+    {
+        $this->pdo->prepare('UPDATE jobs SET worker_id=NULL, locked_at=NULL, updated_at=:u WHERE id=:id')
+            ->execute([':u' => date('Y-m-d H:i:s'), ':id' => $id]);
+    }
+
+    public function countRunning(string $staleBefore): int
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM jobs WHERE state='running' AND locked_at IS NOT NULL AND locked_at >= :sb");
+        $stmt->execute([':sb' => $staleBefore]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function nextClaimable(string $staleBefore): ?array
+    {
+        $stmt = $this->pdo->prepare("SELECT * FROM jobs WHERE state='queued' OR (state='running' AND (locked_at IS NULL OR locked_at < :sb)) ORDER BY id ASC LIMIT 1");
+        $stmt->execute([':sb' => $staleBefore]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
 }
