@@ -106,14 +106,28 @@ final class JobController
         return Response::redirect('/dashboard');
     }
 
-    public function queue(Request $req, array $vars): Response
-    {
-        return $this->transitionOr404((int) $vars['id'], 'queued', '/jobs/' . (int) $vars['id']);
-    }
+    private const ALLOWED = [
+        'queue'  => ['draft', 'paused'],
+        'cancel' => ['draft', 'queued', 'running', 'paused'],
+        'pause'  => ['running'],
+        'resume' => ['paused'],
+    ];
 
-    public function cancel(Request $req, array $vars): Response
+    public function queue(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'queue', 'queued'); }
+    public function cancel(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'cancel', 'canceled'); }
+    public function pause(Request $req, array $vars): Response   { return $this->guarded((int) $vars['id'], 'pause', 'paused'); }
+    public function resume(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'resume', 'queued'); }
+
+    private function guarded(int $id, string $action, string $target): Response
     {
-        return $this->transitionOr404((int) $vars['id'], 'canceled', '/jobs/' . (int) $vars['id']);
+        $job = $this->mustFind($id);
+        if ($job === null) {
+            return Response::html('Not Found', 404);
+        }
+        if (in_array($job['state'], self::ALLOWED[$action], true)) {
+            $this->jobs->transition($id, $this->auth->userId(), $target);
+        }
+        return Response::redirect('/jobs/' . $id);
     }
 
     public function testConnection(Request $req): Response
@@ -132,15 +146,6 @@ final class JobController
     private function mustFind(int $id): ?array
     {
         return $this->jobs->find($id, $this->auth->userId());
-    }
-
-    private function transitionOr404(int $id, string $state, string $redirect): Response
-    {
-        if ($this->mustFind($id) === null) {
-            return Response::html('Not Found', 404);
-        }
-        $this->jobs->transition($id, $this->auth->userId(), $state);
-        return Response::redirect($redirect);
     }
 
     private function account(Request $req, string $prefix): array

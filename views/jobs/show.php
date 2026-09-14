@@ -6,8 +6,14 @@
   <?php if ($job['state'] === 'draft'): ?>
   <form method="post" action="/jobs/<?= $e($job['id']) ?>/queue"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Queue for migration</button></form>
   <?php endif; ?>
-  <?php if (in_array($job['state'], ['draft','queued'], true)): ?>
+  <?php if (in_array($job['state'], ['draft','queued','running','paused'], true)): ?>
   <form method="post" action="/jobs/<?= $e($job['id']) ?>/cancel"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Cancel</button></form>
+  <?php endif; ?>
+  <?php if ($job['state'] === 'running'): ?>
+  <form method="post" action="/jobs/<?= $e($job['id']) ?>/pause"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Pause</button></form>
+  <?php endif; ?>
+  <?php if ($job['state'] === 'paused'): ?>
+  <form method="post" action="/jobs/<?= $e($job['id']) ?>/resume"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Resume</button></form>
   <?php endif; ?>
   <a href="/jobs/<?= $e($job['id']) ?>/edit">Edit</a>
   <form method="post" action="/jobs/<?= $e($job['id']) ?>/delete" onsubmit="return confirm('Delete this job?')"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Delete</button></form>
