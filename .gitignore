@@ -24,3 +24,7 @@ public/assets/*.map
 
 # SDD workspace scratch (subagent-driven-development)
 .superpowers/
+
+# Local deploy bundle (may contain a real .env)
+upload.zip
+deploy.zip
