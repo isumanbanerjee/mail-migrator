@@ -1,0 +1,111 @@
+<?php
+declare(strict_types=1);
+
+namespace EmailMigration\Tests;
+
+use EmailMigration\Ledger\SqliteLedger;
+use EmailMigration\MessageMigrator;
+use EmailMigration\Support\Logger;
+use EmailMigration\Tests\Fakes\InMemoryReader;
+use EmailMigration\Tests\Fakes\InMemoryWriter;
+use PDO;
+use PHPUnit\Framework\TestCase;
+
+final class MessageMigratorTest extends TestCase
+{
+    private function ledger(): SqliteLedger
+    {
+        $l = new SqliteLedger(new PDO('sqlite::memory:'));
+        $l->init();
+        return $l;
+    }
+
+    private function header(int $uid = 1, string $mid = '<m1@x>'): array
+    {
+        return [
+            'uid' => $uid, 'message_id' => $mid, 'from' => 'a@x', 'subject' => 'Hi',
+            'size' => 3, 'internal_date' => '01-Jan-2020 00:00:00 +0000', 'flags' => ['\\Seen'],
+        ];
+    }
+
+    public function test_copies_new_message(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), 'RAW');
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1), [], false);
+
+        $this->assertSame('copied', $action);
+        $this->assertCount(1, $writer->appended);
+        $this->assertSame('RAW', $writer->appended[0]['raw']);
+        $this->assertSame(['\\Seen'], $writer->appended[0]['flags']);
+        $this->assertSame('copied', $ledger->status('INBOX', 1));
+    }
+
+    public function test_skips_when_message_id_present_on_destination(): void
+    {
+        $reader = new InMemoryReader();
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1, '<dup@x>'), ['<dup@x>'], false);
+
+        $this->assertSame('skipped', $action);
+        $this->assertCount(0, $writer->appended);
+        $this->assertSame('skipped', $ledger->status('INBOX', 1));
+    }
+
+    public function test_skips_when_already_copied_in_ledger(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), 'RAW');
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $ledger->recordMessage([
+            'source_folder' => 'INBOX', 'dest_folder' => 'INBOX', 'source_uid' => 1,
+            'message_id' => '<m1@x>', 'dedupe_hash' => null, 'size_bytes' => 3,
+            'internal_date' => 'd', 'flags' => [], 'status' => 'pending',
+        ]);
+        $ledger->markCopied('INBOX', 1);
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1), [], false);
+
+        $this->assertSame('skipped', $action);
+        $this->assertCount(0, $writer->appended);
+    }
+
+    public function test_dry_run_writes_nothing(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), 'RAW');
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1), [], true);
+
+        $this->assertSame('would_copy', $action);
+        $this->assertCount(0, $writer->appended);
+        $this->assertSame('pending', $ledger->status('INBOX', 1));
+    }
+
+    public function test_append_failure_marks_failed(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), 'RAW');
+        $writer = new InMemoryWriter();
+        $writer->failAppend = true;
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1), [], false);
+
+        $this->assertSame('failed', $action);
+        $this->assertSame('failed', $ledger->status('INBOX', 1));
+    }
+}
