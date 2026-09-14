@@ -54,7 +54,14 @@ final class App
         $this->router->add('GET', '/', function (Request $req): Response {
             return Response::redirect($this->auth->check() ? '/dashboard' : '/login');
         });
-        // Later tasks append their routes here (auth, jobs, dashboard).
+
+        $authC = new \App\Http\Controllers\AuthController($this->auth, $this->view, $this->session);
+        $this->router->add('GET', '/register', fn(Request $r) => $authC->showRegister($r));
+        $this->router->add('POST', '/register', fn(Request $r) => $authC->register($r));
+        $this->router->add('GET', '/login', fn(Request $r) => $authC->showLogin($r));
+        $this->router->add('POST', '/login', fn(Request $r) => $authC->login($r));
+        $this->router->add('POST', '/logout', fn(Request $r) => $authC->logout($r), true);
+        // Later tasks append their routes here (jobs, dashboard).
     }
 
     public function handle(Request $req): Response

@@ -41,6 +41,12 @@ final class Auth
     }
 
     public function logout(): void { $this->session->forget('_uid'); }
+
+    public function userExists(string $email): bool
+    {
+        return $this->users->findByEmail($email) !== null;
+    }
+
     public function check(): bool { return $this->userId() !== null; }
     public function userId(): ?int
     {
