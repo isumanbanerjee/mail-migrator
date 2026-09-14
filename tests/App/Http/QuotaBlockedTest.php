@@ -33,4 +33,18 @@ final class QuotaBlockedTest extends FeatureTestCase
         $this->assertStringContainsString('/billing', (string) ($res->headers()['Location'] ?? ''));
         $this->assertSame('draft', $this->app->jobs->find($id, $uid)['state']);
     }
+
+    public function test_resume_blocked_when_paywall_on_and_quota_exhausted(): void
+    {
+        // Regression: pause -> resume must not bypass the entitlement check that queue() enforces.
+        $uid = $this->registerAndLogin();
+        $id = $this->makeJob($uid);
+        $this->app->jobs->transition($id, $uid, 'paused');
+
+        $res = $this->post("/jobs/{$id}/resume");
+
+        $this->assertSame(302, $res->status());
+        $this->assertStringContainsString('/billing', (string) ($res->headers()['Location'] ?? ''));
+        $this->assertSame('paused', $this->app->jobs->find($id, $uid)['state']);
+    }
 }

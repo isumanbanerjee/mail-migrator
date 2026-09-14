@@ -24,4 +24,14 @@ final class QuotaEnforcementTest extends FeatureTestCase
         $this->post("/jobs/{$id}/queue");
         $this->assertSame('queued', $this->app->jobs->find($id, $uid)['state']);
     }
+
+    public function test_resume_allowed_when_paywall_off(): void
+    {
+        // FeatureTestCase default: paywall off
+        $uid = $this->registerAndLogin();
+        $id = $this->makeJob($uid);
+        $this->app->jobs->transition($id, $uid, 'paused');
+        $this->post("/jobs/{$id}/resume");
+        $this->assertSame('queued', $this->app->jobs->find($id, $uid)['state']);
+    }
 }

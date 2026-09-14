@@ -140,7 +140,27 @@ final class JobController
 
     public function cancel(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'cancel', 'canceled'); }
     public function pause(Request $req, array $vars): Response   { return $this->guarded((int) $vars['id'], 'pause', 'paused'); }
-    public function resume(Request $req, array $vars): Response  { return $this->guarded((int) $vars['id'], 'resume', 'queued'); }
+
+    public function resume(Request $req, array $vars): Response
+    {
+        $id = (int) $vars['id'];
+        $job = $this->mustFind($id);
+        if ($job === null) {
+            return Response::html('Not Found', 404);
+        }
+        if (!in_array($job['state'], self::ALLOWED['resume'], true)) {
+            return Response::redirect('/jobs/' . $id);
+        }
+        if ($this->billing->enabled()) {
+            $decision = $this->resolver->canRunJob($this->auth->userId());
+            if (!$decision['allowed']) {
+                $this->session->flash('error', 'You have reached your free usage limit. Please upgrade to continue.');
+                return Response::redirect('/billing');
+            }
+        }
+        $this->jobs->transition($id, $this->auth->userId(), 'queued');
+        return Response::redirect('/jobs/' . $id);
+    }
 
     private function guarded(int $id, string $action, string $target): Response
     {
