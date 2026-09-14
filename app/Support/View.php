@@ -5,10 +5,13 @@ namespace App\Support;
 
 final class View
 {
-    public function __construct(private string $dir) {}
+    public function __construct(private string $dir, private ?Auth $auth = null) {}
 
     public function render(string $template, array $data = []): string
     {
+        if (!array_key_exists('currentUser', $data)) {
+            $data['currentUser'] = $this->auth?->user();
+        }
         $content = $this->renderPartial($template, $data);
         return $this->renderPartial('layout', $data + ['content' => $content]);
     }

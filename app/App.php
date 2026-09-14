@@ -41,7 +41,7 @@ final class App
         $app->users = new UserRepository($app->pdo);
         $app->jobs = new JobRepository($app->pdo);
         $app->auth = new Auth($app->users, $app->session, $app->pdo);
-        $app->view = new View($basePath . '/views');
+        $app->view = new View($basePath . '/views', $app->auth);
         $checker = $overrides['connectionChecker'] ?? new ImapConnectionChecker();
         $app->tester = new ConnectionTester($checker);
         $app->router = new Router();
