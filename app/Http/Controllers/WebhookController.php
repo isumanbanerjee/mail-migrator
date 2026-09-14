@@ -52,15 +52,25 @@ final class WebhookController
 
         $amount = $this->gateways->enabledProducts()[$product] ?? '0.00';
         if ($existing === null) {
-            $paymentId = $this->payments->record([
-                'user_id' => (int) $userId,
-                'gateway' => $gw->name(),
-                'product' => $product,
-                'gateway_ref' => $ref,
-                'amount' => $amount,
-                'currency' => $this->cfg->currency(),
-                'status' => 'created',
-            ]);
+            try {
+                $paymentId = $this->payments->record([
+                    'user_id' => (int) $userId,
+                    'gateway' => $gw->name(),
+                    'product' => $product,
+                    'gateway_ref' => $ref,
+                    'amount' => $amount,
+                    'currency' => $this->cfg->currency(),
+                    'status' => 'created',
+                ]);
+            } catch (\PDOException $e) {
+                // Concurrent delivery of the same new event raced us to insert the unique
+                // (gateway, gateway_ref) row first. That delivery owns the single grant;
+                // treat this one as an idempotent no-op rather than a 500.
+                if (!in_array((string) $e->getCode(), ['23000', '19'], true)) {
+                    throw $e;
+                }
+                return Response::json(['ok' => true]);
+            }
         } else {
             $paymentId = (int) $existing['id'];
         }

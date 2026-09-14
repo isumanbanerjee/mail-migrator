@@ -5,7 +5,7 @@ namespace App\Repositories;
 
 use PDO;
 
-final class PaymentRepository
+class PaymentRepository
 {
     public function __construct(private PDO $pdo) {}
 
