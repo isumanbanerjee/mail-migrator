@@ -26,12 +26,11 @@ php migrate.php                             # full migration (resumable)
 ```
 
 Interrupted? Just run it again — it skips everything already copied.
-Retry only failures with `php migrate.php --retry-failed`.
 
 ## Options
 
 `--config=PATH` `--dry-run` `--folder=NAME` `--since=YYYY-MM-DD`
-`--limit=N` `--retry-failed` `--verbose`
+`--limit=N` `--retry-failed` (planned — not yet implemented; currently a no-op) `--verbose`
 
 ## Safety
 
