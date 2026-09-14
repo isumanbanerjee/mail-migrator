@@ -14,3 +14,6 @@ migration.log
 
 # PHPUnit
 .phpunit.result.cache
+
+# Internal planning docs (not part of the product)
+docs/superpowers/
