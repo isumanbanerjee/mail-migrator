@@ -7,3 +7,7 @@ composer.phar
 
 # JetBrains IDE
 .idea/
+
+/config/accounts.php
+*.sqlite
+migration.log

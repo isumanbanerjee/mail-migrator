@@ -1,0 +1,20 @@
+{
+    "name": "sumanbanerjee/email-migration-engine",
+    "description": "Resumable IMAP-to-IMAP email migration engine",
+    "type": "library",
+    "require": {
+        "php": ">=8.5",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*",
+        "webklex/php-imap": "^5.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": { "EmailMigration\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "EmailMigration\\Tests\\": "tests/" }
+    }
+}
