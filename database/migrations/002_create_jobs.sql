@@ -14,7 +14,7 @@ CREATE TABLE jobs (
   dest_encryption VARCHAR(8) NOT NULL,
   dest_username_enc TEXT NOT NULL,
   dest_password_enc TEXT NOT NULL,
-  options TEXT NOT NULL DEFAULT '{}',
+  options TEXT NOT NULL,
   total_messages INTEGER NOT NULL DEFAULT 0,
   copied INTEGER NOT NULL DEFAULT 0,
   skipped INTEGER NOT NULL DEFAULT 0,
