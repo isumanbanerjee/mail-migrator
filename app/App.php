@@ -61,7 +61,18 @@ final class App
         $this->router->add('GET', '/login', fn(Request $r) => $authC->showLogin($r));
         $this->router->add('POST', '/login', fn(Request $r) => $authC->login($r));
         $this->router->add('POST', '/logout', fn(Request $r) => $authC->logout($r), true);
-        // Later tasks append their routes here (jobs, dashboard).
+
+        $jobC = new \App\Http\Controllers\JobController($this->jobs, $this->encryptor, $this->tester, $this->auth, $this->view, $this->session);
+        $this->router->add('GET', '/jobs/create', fn(Request $r) => $jobC->create($r), true);
+        $this->router->add('POST', '/jobs', fn(Request $r) => $jobC->store($r), true);
+        $this->router->add('POST', '/jobs/test-connection', fn(Request $r) => $jobC->testConnection($r), true);
+        $this->router->add('GET', '/jobs/{id:\d+}', fn(Request $r, array $v) => $jobC->show($r, $v), true);
+        $this->router->add('GET', '/jobs/{id:\d+}/edit', fn(Request $r, array $v) => $jobC->edit($r, $v), true);
+        $this->router->add('POST', '/jobs/{id:\d+}', fn(Request $r, array $v) => $jobC->update($r, $v), true);
+        $this->router->add('POST', '/jobs/{id:\d+}/delete', fn(Request $r, array $v) => $jobC->destroy($r, $v), true);
+        $this->router->add('POST', '/jobs/{id:\d+}/queue', fn(Request $r, array $v) => $jobC->queue($r, $v), true);
+        $this->router->add('POST', '/jobs/{id:\d+}/cancel', fn(Request $r, array $v) => $jobC->cancel($r, $v), true);
+        // Later tasks append their routes here (dashboard).
     }
 
     public function handle(Request $req): Response

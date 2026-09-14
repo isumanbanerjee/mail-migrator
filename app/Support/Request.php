@@ -31,4 +31,5 @@ final class Request
     public function query(string $key, mixed $default = null): mixed { return $this->query[$key] ?? $default; }
     public function cookie(string $key, mixed $default = null): mixed { return $this->cookies[$key] ?? $default; }
     public function server(string $key, mixed $default = null): mixed { return $this->server[$key] ?? $default; }
+    public function all(): array { return $this->post; }
 }
