@@ -17,3 +17,7 @@ migration.log
 
 # Internal planning docs (not part of the product)
 docs/superpowers/
+
+# Environment variables
+.env
+public/assets/*.map
