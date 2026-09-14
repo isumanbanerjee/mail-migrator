@@ -161,3 +161,62 @@ paths are already outside the document root and unreachable regardless — the
 docroot-at-root setup, and for hosts where the rewrite forwarder is in
 effect. Do not skip verifying this in production, since a leaked `.env` would
 expose the `APP_KEY` used to decrypt stored IMAP credentials.
+
+## 9. Background worker (cron)
+
+To process migration jobs asynchronously, set up a cron job that invokes the
+worker CLI every minute:
+
+```
+* * * * * /usr/bin/php /home/USER/app/bin/worker.php >> /home/USER/app/worker.log 2>&1
+```
+
+Adjust the PHP path to match your host's environment (e.g. `/usr/bin/php8.5`
+or `/opt/alt/php85/usr/bin/php` on cPanel) and replace `/home/USER/app` with
+the actual path to your deployed repository.
+
+### How it works
+
+Each minute, the cron invocation starts the worker:
+
+1. The worker claims a single queued job from the database, respecting the
+   `MAX_CONCURRENT_JOBS` concurrency cap to prevent too many parallel
+   migrations.
+2. It runs the migration for up to `WORKER_MAX_SECONDS` (default: 50 seconds),
+   periodically writing progress updates to the job ledger.
+3. After the time budget expires or the migration completes, the worker writes
+   a final state update and exits.
+4. On the next cron tick (within one minute), a new worker invocation claims
+   the job and resumes from where the previous run stopped, using the ledger
+   to track progress across runs.
+
+### Stale job recovery
+
+If a worker process crashes or is killed, its lock on the job is held. The
+worker pool automatically reclaims jobs whose locks are older than
+`WORKER_STALE_SECONDS` (default: 900 seconds, or 15 minutes), allowing the
+next worker invocation to claim and resume the job.
+
+### Configure worker timeout
+
+Edit `.env` to adjust the concurrency and timeout settings:
+
+```
+MAX_CONCURRENT_JOBS=1
+WORKER_STALE_SECONDS=900
+WORKER_MAX_SECONDS=50
+```
+
+- `MAX_CONCURRENT_JOBS` (int): maximum number of jobs running at once. On
+  shared hosting with one cron tick per minute, `1` is typical (each minute's
+  worker focuses on a single job).
+- `WORKER_STALE_SECONDS` (int): seconds after which a locked job is deemed
+  stale and reclaimed for re-processing by the next worker.
+- `WORKER_MAX_SECONDS` (int): soft time budget (in seconds) per worker
+  invocation. The worker stops gracefully before the Linux kernel's
+  `max_execution_time` would kill the PHP process, allowing safe progress
+  updates.
+
+Note: the CLI (`bin/worker.php`) runs outside the web server's
+`max_execution_time` limit, so long-running migrations (even >30 seconds per
+message) are safe as long as they stay within the `WORKER_MAX_SECONDS` budget.
