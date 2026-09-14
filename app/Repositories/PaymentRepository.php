@@ -27,9 +27,10 @@ class PaymentRepository
         return $row === false ? null : $row;
     }
 
-    public function markPaid(int $id): void
+    public function markPaid(int $id): int
     {
-        $this->pdo->prepare('UPDATE payments SET status=:s, updated_at=:u WHERE id=:id')
-            ->execute([':s' => 'paid', ':u' => date('Y-m-d H:i:s'), ':id' => $id]);
+        $stmt = $this->pdo->prepare("UPDATE payments SET status='paid', updated_at=:u WHERE id=:id AND status <> 'paid'");
+        $stmt->execute([':u' => date('Y-m-d H:i:s'), ':id' => $id]);
+        return $stmt->rowCount();
     }
 }

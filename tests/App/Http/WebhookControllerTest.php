@@ -108,6 +108,37 @@ final class WebhookControllerTest extends FeatureTestCase
         $this->assertSame(1, (int) $this->app->entitlements->for($uid)['unlimited']);
     }
 
+    public function test_interleaved_created_then_two_paid_deliveries_grants_once(): void
+    {
+        // Simulates: delivery A already inserted the row as 'created' (e.g. an earlier
+        // "order created" style event, or the first half of a retried delivery) but has not
+        // yet reached markPaid(). Two further, validly-signed webhook deliveries for the same
+        // ref now both findByRef() the 'created' row and take the "existing" branch. Only the
+        // delivery that actually flips created -> paid (rowCount() === 1) may grant.
+        $uid = $this->registerAndLogin();
+        $body = $this->razorpayBody($uid);
+        $sig = hash_hmac('sha256', $body, 'whsec_test123');
+
+        $this->app->payments->record([
+            'user_id' => $uid,
+            'gateway' => 'razorpay',
+            'product' => 'one_time',
+            'gateway_ref' => 'pay_abc123',
+            'amount' => '19.00',
+            'currency' => 'USD',
+            'status' => 'created',
+        ]);
+
+        $res1 = $this->postWebhook($body, $sig);
+        $res2 = $this->postWebhook($body, $sig);
+
+        $this->assertSame(200, $res1->status());
+        $this->assertSame(200, $res2->status());
+        $this->assertSame(['ok' => true], json_decode($res1->body(), true));
+        $this->assertSame(['ok' => true], json_decode($res2->body(), true));
+        $this->assertSame(1, (int) $this->app->entitlements->for($uid)['unlimited']);
+    }
+
     public function test_invalid_signature_rejected_and_no_grant(): void
     {
         $uid = $this->registerAndLogin();

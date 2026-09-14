@@ -74,9 +74,11 @@ final class WebhookController
         } else {
             $paymentId = (int) $existing['id'];
         }
-        $this->payments->markPaid($paymentId);
+        $won = $this->payments->markPaid($paymentId) === 1;
 
-        $this->grant((int) $userId, (string) $product);
+        if ($won) {
+            $this->grant((int) $userId, (string) $product);
+        }
 
         return Response::json(['ok' => true]);
     }
