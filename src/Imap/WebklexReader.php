@@ -5,6 +5,7 @@ namespace EmailMigration\Imap;
 
 use EmailMigration\Mailbox\MailboxReaderInterface;
 use RuntimeException;
+use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 
@@ -37,12 +38,20 @@ final class WebklexReader implements MailboxReaderInterface
                     $dateAttr = $message->getDate();
                     $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
 
+                    $from = $message->getFrom();
+                    $fromMail = $from[0]->mail ?? '';
+
+                    $messageId = (string) $message->getMessageId();
+                    // Only pay for the RFC822.SIZE round-trip when we'll actually need it
+                    // (the sha256 dedupe fallback, used only when there is no Message-ID).
+                    $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
+
                     $cb([
                         'uid' => (int) $message->getUid(),
-                        'message_id' => (string) $message->getMessageId(),
-                        'from' => (string) $message->getFrom()[0]?->mail ?? '',
+                        'message_id' => $messageId,
+                        'from' => (string) $fromMail,
                         'subject' => (string) $message->getSubject(),
-                        'size' => (int) ($message->getSize() ?? 0),
+                        'size' => $size,
                         'internal_date' => $internalDate,
                         'flags' => array_values((array) $message->getFlags()->all()),
                     ]);
@@ -54,9 +63,13 @@ final class WebklexReader implements MailboxReaderInterface
 
     public function fetchRaw(string $folder, int $uid): string
     {
-        $f = $this->getFolder($folder);
-        $message = $f->query()->getMessageByUid($uid);
-        return (string) $message->getRawBody();
+        try {
+            $f = $this->getFolder($folder);
+            $message = $f->query()->getMessageByUid($uid);
+            return (string) $message->getRawBody();
+        } catch (Throwable) {
+            return '';
+        }
     }
 
     private function getFolder(string $folder): Folder

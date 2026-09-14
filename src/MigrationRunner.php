@@ -31,8 +31,15 @@ final class MigrationRunner
         $this->ledger->init();
         $dryRun = (bool) ($this->options['dry_run'] ?? false);
         $only = $this->options['only_folder'] ?? null;
-        $sinceTs = isset($this->options['since']) && $this->options['since']
-            ? strtotime((string) $this->options['since']) : null;
+        $sinceTs = null;
+        if (isset($this->options['since']) && $this->options['since']) {
+            $sinceTs = strtotime((string) $this->options['since']);
+            if ($sinceTs === false) {
+                throw new \InvalidArgumentException(
+                    "Invalid --since date: {$this->options['since']}"
+                );
+            }
+        }
         $limit = $this->options['limit'] ?? null;
         $throttle = (int) ($this->options['throttle_ms'] ?? 0);
 
@@ -44,16 +51,17 @@ final class MigrationRunner
             $destFolder = $this->mapper->map($srcFolder);
             $this->ledger->recordFolder($srcFolder, $destFolder, $this->reader->folderUidValidity($srcFolder));
 
-            $destIndex = [];
             if (!$dryRun) {
                 $this->writer->ensureFolder($destFolder);
-                $destIndex = $this->writer->existingMessageIds($destFolder);
             }
+            // Reading existing message-ids is read-only and safe in dry-run too; without it,
+            // dry-run over-counts would_copy against a destination that already has mail.
+            $destIndex = $this->writer->existingMessageIds($destFolder);
 
             $this->reader->eachHeader($srcFolder, function (array $header) use (
                 $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress
             ) {
-                if ($limit !== null && $this->copied >= $limit) {
+                if ($limit !== null && ($this->copied + $this->wouldCopy) >= $limit) {
                     return;
                 }
                 if ($sinceTs !== null) {

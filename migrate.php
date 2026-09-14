@@ -38,7 +38,7 @@ try {
 }
 
 $reader = new WebklexReader($sourceClient);
-$writer = new WebklexWriter($destClient);
+$writer = new WebklexWriter($destClient, $logger);
 
 if ($opts['test_connection']) {
     $logger->info('Both accounts connected. Folder map:');
@@ -59,13 +59,19 @@ $runner = new MigrationRunner($reader, $writer, $ledger, $mapper, $migrator, $lo
 ]);
 
 $start = time();
-$summary = $runner->run(function (array $s): void {
-    // lightweight inline progress; overwrite a single line
-    fwrite(STDOUT, sprintf(
-        "\r[%s] copied %d  skipped %d  failed %d  would-copy %d   ",
-        $s['folder'], $s['copied'], $s['skipped'], $s['failed'], $s['would_copy']
-    ));
-});
+try {
+    $summary = $runner->run(function (array $s): void {
+        // lightweight inline progress; overwrite a single line
+        fwrite(STDOUT, sprintf(
+            "\r[%s] copied %d  skipped %d  failed %d  would-copy %d   ",
+            $s['folder'], $s['copied'], $s['skipped'], $s['failed'], $s['would_copy']
+        ));
+    });
+} catch (\Throwable $e) {
+    fwrite(STDOUT, PHP_EOL);
+    $logger->error('Migration error: ' . $e->getMessage());
+    exit(1);
+}
 fwrite(STDOUT, PHP_EOL);
 
 $elapsed = time() - $start;

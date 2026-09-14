@@ -111,6 +111,35 @@ final class MigrationRunnerTest extends TestCase
         $this->assertSame('R2', $writer->appended[0]['raw']);
     }
 
+    public function test_invalid_since_throws(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1, '<a@x>'), 'R1');
+        $writer = new InMemoryWriter();
+        [$runner] = $this->build($reader, $writer, ['throttle_ms' => 0, 'since' => 'not-a-real-date']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $runner->run();
+    }
+
+    public function test_dry_run_consults_dest_index(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1, '<a@x>'), 'R1');
+        $reader->addMessage('INBOX', $this->header(2, '<b@x>'), 'R2');
+        $writer = new InMemoryWriter();
+        $writer->existing['INBOX'] = ['<a@x>'];
+        [$runner] = $this->build($reader, $writer, ['throttle_ms' => 0, 'dry_run' => true]);
+
+        $summary = $runner->run();
+
+        $this->assertSame(1, $summary['skipped']);
+        $this->assertSame(1, $summary['would_copy']);
+        $this->assertCount(0, $writer->appended);
+        // dry-run must not create folders
+        $this->assertSame([], $writer->created);
+    }
+
     public function test_only_folder_restricts_scope(): void
     {
         $reader = new InMemoryReader();
