@@ -11,3 +11,6 @@ composer.phar
 /config/accounts.php
 *.sqlite
 migration.log
+
+# PHPUnit
+.phpunit.result.cache
