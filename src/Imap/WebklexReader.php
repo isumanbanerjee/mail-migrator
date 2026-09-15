@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace EmailMigration\Imap;
 
 use EmailMigration\Mailbox\MailboxReaderInterface;
+use EmailMigration\Support\MimeHeader;
 use RuntimeException;
 use Throwable;
 use Webklex\PHPIMAP\Client;
@@ -58,7 +59,7 @@ final class WebklexReader implements MailboxReaderInterface
                         'uid' => (int) $message->getUid(),
                         'message_id' => $messageId,
                         'from' => (string) $fromMail,
-                        'subject' => (string) $message->getSubject(),
+                        'subject' => MimeHeader::decode((string) $message->getSubject()),
                         'size' => $size,
                         'internal_date' => $internalDate,
                         'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
