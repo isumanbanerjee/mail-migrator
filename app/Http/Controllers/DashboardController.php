@@ -53,6 +53,8 @@ final class DashboardController
             if ($sent === '' || str_starts_with($sent, '0000-00-00')) {
                 $sent = '';
             }
+            $flags = json_decode((string) ($m['flags'] ?? '[]'), true) ?: [];
+            $unread = !in_array('\\Seen', $flags, true) && !in_array('Seen', $flags, true);
             return [
                 'folder' => (string) $m['source_folder'],
                 'uid' => (int) $m['source_uid'],
@@ -60,12 +62,15 @@ final class DashboardController
                 'message_id' => (string) ($m['message_id'] ?? ''),
                 'sent_date' => $sent,
                 'size' => (int) ($m['size_bytes'] ?? 0),
+                'unread' => $unread,
                 'status' => (string) $m['status'],
                 'attempts' => (int) ($m['attempts'] ?? 0),
                 'error' => (string) ($m['error'] ?? ''),
                 'updated_at' => (string) ($m['updated_at'] ?? ''),
             ];
         }, $rows);
+
+        $options = json_decode((string) ($job['options'] ?? '{}'), true) ?: [];
 
         return Response::json([
             'state' => $job['state'],
@@ -77,6 +82,8 @@ final class DashboardController
             'per_page' => $perPage,
             'has_more' => $hasMore,
             'messages' => $messages,
+            'limit' => $options['limit'] ?? null,
+            'since' => $options['since'] ?? null,
         ]);
     }
 }

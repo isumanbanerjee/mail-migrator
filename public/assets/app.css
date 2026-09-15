@@ -403,6 +403,9 @@ strong {
 
 .job-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .job-head h1 { margin: 0; }
+.actions--inline { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; align-items: center; }
+.actions--inline form { margin: 0; }
+.actions--inline .btn, .actions--inline a.btn { text-decoration: none; display: inline-block; }
 
 .muted { color: var(--color-text-muted); }
 

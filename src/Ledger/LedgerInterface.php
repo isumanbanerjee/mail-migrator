@@ -10,7 +10,9 @@ interface LedgerInterface
     public function getFolderUidValidity(string $sourceFolder): ?int;
     public function recordMessage(array $msg): void;
     public function status(string $sourceFolder, int $sourceUid): ?string;
-    public function markCopied(string $sourceFolder, int $sourceUid): void;
+    /** True once any message row exists for this folder (i.e. we have scanned it before). */
+    public function folderScanned(string $sourceFolder): bool;
+    public function markCopied(string $sourceFolder, int $sourceUid, int $sizeBytes = 0): void;
     public function markSkipped(string $sourceFolder, int $sourceUid): void;
     public function markFailed(string $sourceFolder, int $sourceUid, string $error): void;
     /** @return array{copied:int,skipped:int,failed:int,pending:int} */

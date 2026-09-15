@@ -58,7 +58,14 @@ final class MysqlLedger implements LedgerInterface
         return $v === false ? null : (string) $v;
     }
 
-    public function markCopied(string $sf, int $uid): void { $this->setStatus($sf, $uid, 'copied', null); }
+    public function folderScanned(string $sourceFolder): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT 1 FROM job_ledger_messages WHERE job_id = :j AND source_folder = :sf LIMIT 1');
+        $stmt->execute([':j' => $this->jobId, ':sf' => $sourceFolder]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    public function markCopied(string $sf, int $uid, int $sizeBytes = 0): void { $this->setStatus($sf, $uid, 'copied', null, $sizeBytes); }
     public function markSkipped(string $sf, int $uid): void { $this->setStatus($sf, $uid, 'skipped', null); }
     public function markFailed(string $sf, int $uid, string $error): void { $this->setStatus($sf, $uid, 'failed', $error); }
 
@@ -71,8 +78,13 @@ final class MysqlLedger implements LedgerInterface
                 'failed' => (int) ($rows['failed'] ?? 0), 'pending' => (int) ($rows['pending'] ?? 0)];
     }
 
-    private function setStatus(string $sf, int $uid, string $status, ?string $error): void
+    private function setStatus(string $sf, int $uid, string $status, ?string $error, int $sizeBytes = 0): void
     {
+        if ($sizeBytes > 0) {
+            $stmt = $this->pdo->prepare('UPDATE job_ledger_messages SET status=:st, error=:er, size_bytes=:sz, attempts=attempts+1, updated_at=:ua WHERE job_id=:j AND source_folder=:sf AND source_uid=:uid');
+            $stmt->execute([':st' => $status, ':er' => $error, ':sz' => $sizeBytes, ':ua' => date('Y-m-d H:i:s'), ':j' => $this->jobId, ':sf' => $sf, ':uid' => $uid]);
+            return;
+        }
         $stmt = $this->pdo->prepare('UPDATE job_ledger_messages SET status=:st, error=:er, attempts=attempts+1, updated_at=:ua WHERE job_id=:j AND source_folder=:sf AND source_uid=:uid');
         $stmt->execute([':st' => $status, ':er' => $error, ':ua' => date('Y-m-d H:i:s'), ':j' => $this->jobId, ':sf' => $sf, ':uid' => $uid]);
     }

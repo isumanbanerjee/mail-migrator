@@ -97,9 +97,16 @@ final class SqliteLedger implements LedgerInterface
         return $v === false ? null : (string) $v;
     }
 
-    public function markCopied(string $sourceFolder, int $sourceUid): void
+    public function folderScanned(string $sourceFolder): bool
     {
-        $this->setStatus($sourceFolder, $sourceUid, 'copied', null);
+        $stmt = $this->pdo->prepare('SELECT 1 FROM ledger_messages WHERE source_folder = :sf LIMIT 1');
+        $stmt->execute([':sf' => $sourceFolder]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    public function markCopied(string $sourceFolder, int $sourceUid, int $sizeBytes = 0): void
+    {
+        $this->setStatus($sourceFolder, $sourceUid, 'copied', null, $sizeBytes);
     }
 
     public function markSkipped(string $sourceFolder, int $sourceUid): void
@@ -124,8 +131,17 @@ final class SqliteLedger implements LedgerInterface
         ];
     }
 
-    private function setStatus(string $sf, int $uid, string $status, ?string $error): void
+    private function setStatus(string $sf, int $uid, string $status, ?string $error, int $sizeBytes = 0): void
     {
+        if ($sizeBytes > 0) {
+            $stmt = $this->pdo->prepare(<<<SQL
+                UPDATE ledger_messages
+                SET status = :st, error = :er, size_bytes = :sz, attempts = attempts + 1, updated_at = :ua
+                WHERE source_folder = :sf AND source_uid = :uid
+            SQL);
+            $stmt->execute([':st' => $status, ':er' => $error, ':sz' => $sizeBytes, ':ua' => $this->now(), ':sf' => $sf, ':uid' => $uid]);
+            return;
+        }
         $stmt = $this->pdo->prepare(<<<SQL
             UPDATE ledger_messages
             SET status = :st, error = :er, attempts = attempts + 1, updated_at = :ua

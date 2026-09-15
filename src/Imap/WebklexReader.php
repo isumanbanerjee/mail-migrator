@@ -53,7 +53,7 @@ final class WebklexReader implements MailboxReaderInterface
                         'subject' => (string) $message->getSubject(),
                         'size' => $size,
                         'internal_date' => $internalDate,
-                        'flags' => array_values((array) $message->getFlags()->all()),
+                        'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
                     ]);
                 }
             },
@@ -83,6 +83,27 @@ final class WebklexReader implements MailboxReaderInterface
         } catch (Throwable) {
             return '';
         }
+    }
+
+    /**
+     * webklex strips the leading backslash from flags when parsing (\Seen -> Seen),
+     * so re-add it for the IMAP system flags. Without this, an APPEND sends "Seen"
+     * as a custom keyword instead of the system \Seen flag and the destination loses
+     * the read/unread (and answered/flagged/...) state. Custom keywords pass through.
+     *
+     * @param array<int,string> $flags
+     * @return array<int,string>
+     */
+    public static function normalizeFlags(array $flags): array
+    {
+        $system = ['seen' => '\\Seen', 'answered' => '\\Answered', 'flagged' => '\\Flagged',
+                   'draft' => '\\Draft', 'deleted' => '\\Deleted', 'recent' => '\\Recent'];
+        $out = [];
+        foreach ($flags as $flag) {
+            $bare = strtolower(ltrim((string) $flag, '\\'));
+            $out[] = $system[$bare] ?? (string) $flag;
+        }
+        return array_values(array_unique($out));
     }
 
     private function getFolder(string $folder): Folder

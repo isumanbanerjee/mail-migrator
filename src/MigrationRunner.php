@@ -49,14 +49,19 @@ final class MigrationRunner
         foreach ($folders as $srcFolder) {
             $folderCount++;
             $destFolder = $this->mapper->map($srcFolder);
+            // Check before recordFolder/eachHeader touch the ledger for this folder.
+            $alreadyScanned = $this->ledger->folderScanned($srcFolder);
             $this->ledger->recordFolder($srcFolder, $destFolder, $this->reader->folderUidValidity($srcFolder));
 
             if (!$dryRun) {
                 $this->writer->ensureFolder($destFolder);
             }
-            // Reading existing message-ids is read-only and safe in dry-run too; without it,
-            // dry-run over-counts would_copy against a destination that already has mail.
-            $destIndex = $this->writer->existingMessageIds($destFolder);
+            // Scanning the whole destination for existing message-ids is expensive and only
+            // needed the first time we touch a folder (to dedupe against mail already there).
+            // On resumed runs the ledger already tracks what we copied, so skip the rescan —
+            // this is the difference between a fast resume and re-reading the entire mailbox
+            // every cron tick.
+            $destIndex = $alreadyScanned ? [] : $this->writer->existingMessageIds($destFolder);
 
             $this->reader->eachHeader($srcFolder, function (array $header) use (
                 $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress

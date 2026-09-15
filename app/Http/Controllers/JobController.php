@@ -134,7 +134,9 @@ final class JobController
                 return Response::redirect('/billing');
             }
         }
-        $this->jobs->transition($id, $this->auth->userId(), 'queued');
+        if ($this->jobs->transition($id, $this->auth->userId(), 'queued')) {
+            $this->jobs->releaseLock($id); // drop any stale lock so a worker can claim it now
+        }
         return Response::redirect('/jobs/' . $id);
     }
 
@@ -158,7 +160,9 @@ final class JobController
                 return Response::redirect('/billing');
             }
         }
-        $this->jobs->transition($id, $this->auth->userId(), 'queued');
+        if ($this->jobs->transition($id, $this->auth->userId(), 'queued')) {
+            $this->jobs->releaseLock($id); // drop any stale lock so a worker can claim it now
+        }
         return Response::redirect('/jobs/' . $id);
     }
 

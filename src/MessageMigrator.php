@@ -74,7 +74,7 @@ final class MessageMigrator
         );
 
         if ($ok) {
-            $this->ledger->markCopied($srcFolder, $uid);
+            $this->ledger->markCopied($srcFolder, $uid, strlen($raw));
             return 'copied';
         }
 

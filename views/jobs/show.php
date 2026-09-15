@@ -3,6 +3,27 @@
   <div class="job-head">
     <h1><?= $e($job['name']) ?></h1>
     <span class="badge" :class="'badge--' + stateClass(state)" x-text="state"></span>
+    <div class="actions actions--inline">
+      <?php if ($job['state'] === 'draft'): ?>
+      <form method="post" action="/jobs/<?= $jid ?>/queue"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Queue for migration</button></form>
+      <?php endif; ?>
+      <?php if ($job['state'] === 'paused'): ?>
+      <form method="post" action="/jobs/<?= $jid ?>/resume"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Resume</button></form>
+      <?php endif; ?>
+      <?php if ($job['state'] === 'running'): ?>
+      <form method="post" action="/jobs/<?= $jid ?>/pause"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Pause</button></form>
+      <?php endif; ?>
+      <?php if (in_array($job['state'], ['draft','queued','running','paused'], true)): ?>
+      <form method="post" action="/jobs/<?= $jid ?>/cancel"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Cancel</button></form>
+      <?php endif; ?>
+      <a class="btn" href="/jobs/<?= $jid ?>/edit">Edit</a>
+      <form method="post" action="/jobs/<?= $jid ?>/delete" onsubmit="return confirm('Delete this job?')"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Delete</button></form>
+    </div>
+  </div>
+
+  <div class="error" x-show="limit" style="display:none">
+    This job has a <strong>limit of <span x-text="limit"></span></strong> message(s), so each run copies at most that many.
+    Clear the limit on the <a href="/jobs/<?= $jid ?>/edit">Edit</a> page to migrate the whole mailbox.
   </div>
 
   <div class="progress-wrap">
@@ -43,9 +64,9 @@
           <td x-text="m.folder"></td>
           <td :title="m.subject || m.message_id" x-text="m.subject ? shorten(m.subject) : (m.message_id ? shorten(m.message_id) : ('uid ' + m.uid))"></td>
           <td class="muted nowrap" x-text="m.sent_date || '—'"></td>
-          <td x-text="humanSize(m.size)"></td>
+          <td class="nowrap" x-text="humanSize(m.size)"></td>
           <td><span class="badge" :class="'badge--' + stateClass(m.status)" x-text="m.status"></span></td>
-          <td class="info" :title="m.error" x-text="m.status === 'failed' ? m.error : (m.attempts > 1 ? ('attempts: ' + m.attempts) : '')"></td>
+          <td class="info" :title="m.error" x-text="infoText(m)"></td>
         </tr>
       </template>
       <tr x-show="messages.length === 0"><td colspan="6" class="muted empty">No messages<span x-show="filter !== 'all'" x-text="' with status: ' + filter"></span> yet.</td></tr>
@@ -58,22 +79,6 @@
     <button type="button" class="btn" @click="next()" :disabled="!hasMore || loading">Next &rarr;</button>
   </div>
 
-  <div class="actions">
-    <?php if ($job['state'] === 'draft'): ?>
-    <form method="post" action="/jobs/<?= $jid ?>/queue"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Queue for migration</button></form>
-    <?php endif; ?>
-    <?php if (in_array($job['state'], ['draft','queued','running','paused'], true)): ?>
-    <form method="post" action="/jobs/<?= $jid ?>/cancel"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Cancel</button></form>
-    <?php endif; ?>
-    <?php if ($job['state'] === 'running'): ?>
-    <form method="post" action="/jobs/<?= $jid ?>/pause"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Pause</button></form>
-    <?php endif; ?>
-    <?php if ($job['state'] === 'paused'): ?>
-    <form method="post" action="/jobs/<?= $jid ?>/resume"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Resume</button></form>
-    <?php endif; ?>
-    <a href="/jobs/<?= $jid ?>/edit">Edit</a>
-    <form method="post" action="/jobs/<?= $jid ?>/delete" onsubmit="return confirm('Delete this job?')"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Delete</button></form>
-  </div>
   <p><a href="/dashboard">&larr; Back to dashboard</a></p>
 </div>
 
@@ -83,7 +88,7 @@ function jobProgress(id, initialState) {
     id, state: initialState, percent: 0, currentFolder: '',
     counts: { copied: 0, skipped: 0, failed: 0, pending: 0, total: 0 },
     messages: [], filter: 'all', page: 1, hasMore: false,
-    auto: true, loading: false, timer: null,
+    limit: null, since: null, auto: true, loading: false, timer: null,
     init() {
       this.load();
       this.$watch('auto', v => v ? this.start() : this.stop());
@@ -101,7 +106,7 @@ function jobProgress(id, initialState) {
           const d = await r.json();
           this.state = d.state; this.percent = d.percent; this.currentFolder = d.current_folder || '';
           this.counts = d.counts; this.messages = d.messages; this.hasMore = d.has_more;
-          // stop polling once the job is in a terminal state
+          this.limit = d.limit; this.since = d.since;
           if (['completed','canceled','failed','draft'].includes(d.state)) this.stop();
         }
       } finally { this.loading = false; }
@@ -109,12 +114,18 @@ function jobProgress(id, initialState) {
     setFilter(f) { this.filter = f; this.page = 1; this.load(); },
     next() { if (this.hasMore) { this.page++; this.load(); } },
     prev() { if (this.page > 1) { this.page--; this.load(); } },
+    infoText(m) {
+      if (m.status === 'failed') return m.error || 'failed';
+      let s = m.unread ? 'Unread' : 'Read';
+      if (m.attempts > 1) s += ' · attempts: ' + m.attempts;
+      return s;
+    },
     stateClass(s) {
       return ({ copied: 'success', completed: 'success', failed: 'danger', canceled: 'danger',
                 running: 'primary', queued: 'primary', pending: 'pending', paused: 'pending',
                 skipped: 'muted', draft: 'muted' })[s] || 'muted';
     },
-    shorten(s) { return s.length > 42 ? s.slice(0, 39) + '…' : s; },
+    shorten(s) { return s.length > 48 ? s.slice(0, 45) + '…' : s; },
     humanSize(b) {
       if (!b) return '—';
       const u = ['B','KB','MB','GB']; let i = 0, n = b;
