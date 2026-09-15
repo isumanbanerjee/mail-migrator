@@ -460,6 +460,8 @@ strong {
 
 .btn--sm { padding: 3px 9px; font-size: 0.78rem; margin-left: 4px; }
 .btn--sm:first-child { margin-left: 0; }
+.row-actions { display: inline-flex; gap: 6px; align-items: center; }
+.row-actions form { margin: 0; }
 /* Higher specificity than the global button[type=button] rule so it actually wins. */
 button.btn--primary, .btn.btn--primary {
   background: var(--color-primary); color: var(--color-primary-contrast); border-color: var(--color-primary);
