@@ -71,6 +71,17 @@ final class JobRepository
         return $stmt->rowCount() > 0;
     }
 
+    /** Move a job to 'queued', clearing any stale error and lock so a worker can pick it up. */
+    public function markQueued(int $id, int $userId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE jobs SET state = :s, last_error = NULL, worker_id = NULL, locked_at = NULL, updated_at = :u
+             WHERE id = :id AND user_id = :user_id'
+        );
+        $stmt->execute([':s' => 'queued', ':u' => date('Y-m-d H:i:s'), ':id' => $id, ':user_id' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
     public function saveProgress(int $id, array $p): void
     {
         $stmt = $this->pdo->prepare('UPDATE jobs SET total_messages=:t, copied=:c, skipped=:s, failed=:f, current_folder=:cf, percent=:p, updated_at=:u WHERE id=:id');

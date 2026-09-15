@@ -97,6 +97,7 @@ final class App
         $this->router->add('POST', '/jobs/{id:\d+}/cancel', fn(Request $r, array $v) => $jobC->cancel($r, $v), true);
         $this->router->add('POST', '/jobs/{id:\d+}/pause', fn(Request $r, array $v) => $jobC->pause($r, $v), true);
         $this->router->add('POST', '/jobs/{id:\d+}/resume', fn(Request $r, array $v) => $jobC->resume($r, $v), true);
+        $this->router->add('POST', '/jobs/{id:\d+}/retry', fn(Request $r, array $v) => $jobC->retry($r, $v), true);
 
         $dashC = new \App\Http\Controllers\DashboardController($this->jobs, $this->auth, $this->view, $this->session);
         $this->router->add('GET', '/dashboard', fn(Request $r) => $dashC->index($r), true);

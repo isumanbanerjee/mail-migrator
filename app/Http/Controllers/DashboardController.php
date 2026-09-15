@@ -76,6 +76,7 @@ final class DashboardController
             'state' => $job['state'],
             'percent' => $percent,
             'current_folder' => $job['current_folder'],
+            'last_error' => $job['last_error'] ?? null,
             'counts' => $counts,
             'filter' => $filter,
             'page' => $page,

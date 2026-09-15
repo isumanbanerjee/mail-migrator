@@ -13,6 +13,9 @@
       <?php if ($job['state'] === 'running'): ?>
       <form method="post" action="/jobs/<?= $jid ?>/pause"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Pause</button></form>
       <?php endif; ?>
+      <?php if (in_array($job['state'], ['failed','canceled'], true)): ?>
+      <form method="post" action="/jobs/<?= $jid ?>/retry"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Retry</button></form>
+      <?php endif; ?>
       <?php if (in_array($job['state'], ['draft','queued','running','paused'], true)): ?>
       <form method="post" action="/jobs/<?= $jid ?>/cancel"><input type="hidden" name="_csrf" value="<?= $e($t) ?>"><button>Cancel</button></form>
       <?php endif; ?>
@@ -42,7 +45,7 @@
     <div class="tile"><span class="tile__n" x-text="counts.total.toLocaleString()"></span><span class="tile__l">Total</span></div>
   </div>
 
-  <?php if (!empty($job['last_error'])): ?><div class="error">Last job error: <?= $e($job['last_error']) ?></div><?php endif; ?>
+  <div class="error" x-show="lastError" style="display:none">Last job error: <span x-text="lastError"></span></div>
 
   <div class="list-bar">
     <div class="tabs">
@@ -88,7 +91,7 @@ function jobProgress(id, initialState) {
     id, state: initialState, percent: 0, currentFolder: '',
     counts: { copied: 0, skipped: 0, failed: 0, pending: 0, total: 0 },
     messages: [], filter: 'all', page: 1, hasMore: false,
-    limit: null, since: null, auto: true, loading: false, timer: null,
+    limit: null, since: null, lastError: '', auto: true, loading: false, timer: null,
     init() {
       this.load();
       this.$watch('auto', v => v ? this.start() : this.stop());
@@ -106,7 +109,7 @@ function jobProgress(id, initialState) {
           const d = await r.json();
           this.state = d.state; this.percent = d.percent; this.currentFolder = d.current_folder || '';
           this.counts = d.counts; this.messages = d.messages; this.hasMore = d.has_more;
-          this.limit = d.limit; this.since = d.since;
+          this.limit = d.limit; this.since = d.since; this.lastError = d.last_error || '';
           if (['completed','canceled','failed','draft'].includes(d.state)) this.stop();
         }
       } finally { this.loading = false; }

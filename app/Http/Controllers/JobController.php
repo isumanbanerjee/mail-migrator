@@ -115,6 +115,7 @@ final class JobController
         'cancel' => ['draft', 'queued', 'running', 'paused'],
         'pause'  => ['running'],
         'resume' => ['paused'],
+        'retry'  => ['failed', 'canceled'],
     ];
 
     public function queue(Request $req, array $vars): Response
@@ -134,9 +135,7 @@ final class JobController
                 return Response::redirect('/billing');
             }
         }
-        if ($this->jobs->transition($id, $this->auth->userId(), 'queued')) {
-            $this->jobs->releaseLock($id); // drop any stale lock so a worker can claim it now
-        }
+        $this->jobs->markQueued($id, $this->auth->userId());
         return Response::redirect('/jobs/' . $id);
     }
 
@@ -160,9 +159,28 @@ final class JobController
                 return Response::redirect('/billing');
             }
         }
-        if ($this->jobs->transition($id, $this->auth->userId(), 'queued')) {
-            $this->jobs->releaseLock($id); // drop any stale lock so a worker can claim it now
+        $this->jobs->markQueued($id, $this->auth->userId());
+        return Response::redirect('/jobs/' . $id);
+    }
+
+    public function retry(Request $req, array $vars): Response
+    {
+        $id = (int) $vars['id'];
+        $job = $this->mustFind($id);
+        if ($job === null) {
+            return Response::html('Not Found', 404);
         }
+        if (!in_array($job['state'], self::ALLOWED['retry'], true)) {
+            return Response::redirect('/jobs/' . $id);
+        }
+        if ($this->billing->enabled()) {
+            $decision = $this->resolver->canRunJob($this->auth->userId());
+            if (!$decision['allowed']) {
+                $this->session->flash('error', 'You have reached your free usage limit. Please upgrade to continue.');
+                return Response::redirect('/billing');
+            }
+        }
+        $this->jobs->markQueued($id, $this->auth->userId());
         return Response::redirect('/jobs/' . $id);
     }
 
