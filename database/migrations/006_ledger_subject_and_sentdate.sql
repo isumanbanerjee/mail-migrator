@@ -1,0 +1,2 @@
+ALTER TABLE job_ledger_messages ADD COLUMN subject VARCHAR(998);
+{{ALTER_INTERNAL_DATE_TO_VARCHAR}};

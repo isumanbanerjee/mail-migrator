@@ -36,16 +36,16 @@
   </div>
 
   <table class="msg-table">
-    <thead><tr><th>Folder</th><th>Message</th><th>Size</th><th>Status</th><th>Info</th><th>Updated</th></tr></thead>
+    <thead><tr><th>Folder</th><th>Subject</th><th>Sent date</th><th>Size</th><th>Status</th><th>Info</th></tr></thead>
     <tbody>
       <template x-for="m in messages" :key="m.folder + ':' + m.uid">
         <tr>
           <td x-text="m.folder"></td>
-          <td class="mono" :title="m.message_id" x-text="m.message_id ? shorten(m.message_id) : ('uid ' + m.uid)"></td>
+          <td :title="m.subject || m.message_id" x-text="m.subject ? shorten(m.subject) : (m.message_id ? shorten(m.message_id) : ('uid ' + m.uid))"></td>
+          <td class="muted nowrap" x-text="m.sent_date || '—'"></td>
           <td x-text="humanSize(m.size)"></td>
           <td><span class="badge" :class="'badge--' + stateClass(m.status)" x-text="m.status"></span></td>
           <td class="info" :title="m.error" x-text="m.status === 'failed' ? m.error : (m.attempts > 1 ? ('attempts: ' + m.attempts) : '')"></td>
-          <td class="muted" x-text="m.updated_at"></td>
         </tr>
       </template>
       <tr x-show="messages.length === 0"><td colspan="6" class="muted empty">No messages<span x-show="filter !== 'all'" x-text="' with status: ' + filter"></span> yet.</td></tr>

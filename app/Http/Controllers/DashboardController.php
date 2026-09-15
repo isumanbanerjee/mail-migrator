@@ -49,10 +49,16 @@ final class DashboardController
         $percent = $counts['total'] > 0 ? (int) round($done / $counts['total'] * 100) : (int) $job['percent'];
 
         $messages = array_map(static function (array $m): array {
+            $sent = (string) ($m['internal_date'] ?? '');
+            if ($sent === '' || str_starts_with($sent, '0000-00-00')) {
+                $sent = '';
+            }
             return [
                 'folder' => (string) $m['source_folder'],
                 'uid' => (int) $m['source_uid'],
+                'subject' => (string) ($m['subject'] ?? ''),
                 'message_id' => (string) ($m['message_id'] ?? ''),
+                'sent_date' => $sent,
                 'size' => (int) ($m['size_bytes'] ?? 0),
                 'status' => (string) $m['status'],
                 'attempts' => (int) ($m['attempts'] ?? 0),

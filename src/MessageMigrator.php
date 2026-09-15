@@ -41,6 +41,7 @@ final class MessageMigrator
             'dest_folder' => $destFolder,
             'source_uid' => $uid,
             'message_id' => $messageId !== '' ? $messageId : null,
+            'subject' => ($header['subject'] ?? '') !== '' ? (string) $header['subject'] : null,
             'dedupe_hash' => $messageId === '' ? Dedupe::hash(
                 (string) $header['internal_date'], (string) $header['from'],
                 (string) $header['subject'], (int) $header['size']

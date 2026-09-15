@@ -39,8 +39,18 @@ final class Migrator
     private function render(string $sql, string $driver): string
     {
         if ($driver === 'sqlite') {
-            return str_replace(['{{PK}}', '{{ENGINE}}'], ['INTEGER PRIMARY KEY AUTOINCREMENT', ''], $sql);
+            // SQLite has no MODIFY COLUMN, but its dynamic typing already lets a
+            // DATETIME-declared column hold the IMAP date string, so this is a no-op.
+            return str_replace(
+                ['{{PK}}', '{{ENGINE}}', '{{ALTER_INTERNAL_DATE_TO_VARCHAR}}'],
+                ['INTEGER PRIMARY KEY AUTOINCREMENT', '', ''],
+                $sql
+            );
         }
-        return str_replace(['{{PK}}', '{{ENGINE}}'], ['BIGINT AUTO_INCREMENT PRIMARY KEY', 'ENGINE=InnoDB'], $sql);
+        return str_replace(
+            ['{{PK}}', '{{ENGINE}}', '{{ALTER_INTERNAL_DATE_TO_VARCHAR}}'],
+            ['BIGINT AUTO_INCREMENT PRIMARY KEY', 'ENGINE=InnoDB', 'ALTER TABLE job_ledger_messages MODIFY internal_date VARCHAR(64) NULL'],
+            $sql
+        );
     }
 }

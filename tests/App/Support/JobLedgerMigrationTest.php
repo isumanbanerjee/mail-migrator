@@ -17,4 +17,13 @@ final class JobLedgerMigrationTest extends TestCase
         $this->assertContains('job_ledger_messages', $tables);
         $this->assertContains('job_ledger_folders', $tables);
     }
+
+    public function test_ledger_has_subject_column(): void
+    {
+        $pdo = Database::make(['driver' => 'sqlite', 'database' => ':memory:']);
+        (new Migrator($pdo, $this->migrationsDir()))->migrate();
+        $cols = $pdo->query('PRAGMA table_info(job_ledger_messages)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        $this->assertContains('subject', $cols);
+        $this->assertContains('internal_date', $cols);
+    }
 }

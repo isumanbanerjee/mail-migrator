@@ -39,12 +39,12 @@ final class MysqlLedger implements LedgerInterface
             return; // idempotent: never clobber an existing row
         }
         $ins = $this->pdo->prepare('INSERT INTO job_ledger_messages
-            (job_id, source_folder, dest_folder, source_uid, message_id, dedupe_hash, size_bytes, internal_date, flags, status, created_at, updated_at)
-            VALUES (:j,:sf,:df,:uid,:mid,:dh,:sz,:idt,:fl,:st,:ca,:ua)');
+            (job_id, source_folder, dest_folder, source_uid, message_id, subject, dedupe_hash, size_bytes, internal_date, flags, status, created_at, updated_at)
+            VALUES (:j,:sf,:df,:uid,:mid,:subj,:dh,:sz,:idt,:fl,:st,:ca,:ua)');
         $now = date('Y-m-d H:i:s');
         $ins->execute([
             ':j' => $this->jobId, ':sf' => $msg['source_folder'], ':df' => $msg['dest_folder'], ':uid' => (int) $msg['source_uid'],
-            ':mid' => $msg['message_id'] ?? null, ':dh' => $msg['dedupe_hash'] ?? null, ':sz' => (int) ($msg['size_bytes'] ?? 0),
+            ':mid' => $msg['message_id'] ?? null, ':subj' => $msg['subject'] ?? null, ':dh' => $msg['dedupe_hash'] ?? null, ':sz' => (int) ($msg['size_bytes'] ?? 0),
             ':idt' => $msg['internal_date'] ?? null, ':fl' => json_encode($msg['flags'] ?? []), ':st' => $msg['status'] ?? 'pending',
             ':ca' => $now, ':ua' => $now,
         ]);

@@ -151,7 +151,7 @@ final class JobRepository
             $where .= ' AND status = :st';
             $params[':st'] = $status;
         }
-        $sql = "SELECT source_folder, source_uid, message_id, size_bytes, status, attempts, error, updated_at
+        $sql = "SELECT source_folder, source_uid, message_id, subject, internal_date, size_bytes, status, attempts, error, updated_at
                 FROM job_ledger_messages WHERE {$where}
                 ORDER BY updated_at DESC, id DESC LIMIT {$limit} OFFSET {$offset}";
         $stmt = $this->pdo->prepare($sql);

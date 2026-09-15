@@ -451,5 +451,6 @@ strong {
 .msg-table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--color-text-muted); }
 .msg-table .info { color: var(--color-danger); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .msg-table .empty { text-align: center; padding: 24px; }
+.msg-table .nowrap { white-space: nowrap; }
 
 .pager { display: flex; align-items: center; gap: 12px; margin: 12px 0; }

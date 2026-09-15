@@ -26,6 +26,7 @@ final class SqliteLedger implements LedgerInterface
                 dest_folder TEXT NOT NULL,
                 source_uid INTEGER NOT NULL,
                 message_id TEXT,
+                subject TEXT,
                 dedupe_hash TEXT,
                 size_bytes INTEGER,
                 internal_date TEXT,
@@ -74,14 +75,14 @@ final class SqliteLedger implements LedgerInterface
     {
         $stmt = $this->pdo->prepare(<<<SQL
             INSERT INTO ledger_messages
-                (source_folder, dest_folder, source_uid, message_id, dedupe_hash, size_bytes,
+                (source_folder, dest_folder, source_uid, message_id, subject, dedupe_hash, size_bytes,
                  internal_date, flags, status, created_at, updated_at)
-            VALUES (:sf,:df,:uid,:mid,:dh,:sz,:idt,:fl,:st,:ca,:ua)
+            VALUES (:sf,:df,:uid,:mid,:subj,:dh,:sz,:idt,:fl,:st,:ca,:ua)
             ON CONFLICT(source_folder, source_uid) DO NOTHING
         SQL);
         $stmt->execute([
             ':sf' => $msg['source_folder'], ':df' => $msg['dest_folder'], ':uid' => (int) $msg['source_uid'],
-            ':mid' => $msg['message_id'] ?? null, ':dh' => $msg['dedupe_hash'] ?? null,
+            ':mid' => $msg['message_id'] ?? null, ':subj' => $msg['subject'] ?? null, ':dh' => $msg['dedupe_hash'] ?? null,
             ':sz' => (int) ($msg['size_bytes'] ?? 0), ':idt' => $msg['internal_date'] ?? null,
             ':fl' => json_encode($msg['flags'] ?? []), ':st' => $msg['status'] ?? 'pending',
             ':ca' => $this->now(), ':ua' => $this->now(),
