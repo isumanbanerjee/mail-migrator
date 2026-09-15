@@ -73,7 +73,7 @@
           <td class="nowrap">
             <template x-if="m.status === 'failed'">
               <span>
-                <button type="button" class="btn btn--sm" @click="retryMessage(m)" :disabled="m._retrying" x-text="m._retrying ? '…' : 'Retry'"></button>
+                <button type="button" class="btn btn--sm btn--primary" @click="retryMessage(m)" :disabled="m._retrying" x-text="m._retrying ? '…' : 'Retry'"></button>
                 <button type="button" class="btn btn--sm" @click="showError(m)" x-show="m.error" title="Show full error">Log</button>
               </span>
             </template>
@@ -135,16 +135,22 @@ function jobProgress(id, initialState, csrf) {
     prev() { if (this.page > 1) { this.page--; this.load(); } },
     showError(m) { this.errorModal = m.error || '(no error recorded)'; },
     async retryMessage(m) {
+      if (m._retrying) return;
       m._retrying = true;
       try {
-        const body = new URLSearchParams({ _csrf: this.csrf, folder: m.folder, uid: m.uid });
+        const body = new URLSearchParams({ _csrf: this.csrf, folder: m.folder, uid: String(m.uid) });
         const r = await fetch(`/jobs/${this.id}/messages/retry`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body,
         });
-        if (r.ok) { await this.load(); } else { m._retrying = false; }
-      } catch (e) { m._retrying = false; }
+        if (!r.ok) { this.errorModal = 'Retry request failed (HTTP ' + r.status + ').'; }
+      } catch (e) {
+        this.errorModal = 'Retry request failed: ' + e;
+      } finally {
+        m._retrying = false;
+        this.load();
+      }
     },
     infoText(m) {
       if (m.status === 'failed') return m.error || 'failed';
