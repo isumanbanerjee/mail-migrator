@@ -11,6 +11,8 @@ final class InMemoryReader implements MailboxReaderInterface
     public array $folders = [];
     /** @var array<string,array<int,string>> "folder:uid" => raw */
     public array $raw = [];
+    /** @var array<string,string> "folder:uid" => body only (for the fetchBody fast path) */
+    public array $body = [];
     /** @var array<string,int> */
     public array $uidValidity = [];
 
@@ -41,5 +43,10 @@ final class InMemoryReader implements MailboxReaderInterface
     public function fetchRaw(string $folder, int $uid): string
     {
         return $this->raw["{$folder}:{$uid}"] ?? '';
+    }
+
+    public function fetchBody(string $folder, int $uid): string
+    {
+        return $this->body["{$folder}:{$uid}"] ?? '';
     }
 }

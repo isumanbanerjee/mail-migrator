@@ -45,6 +45,43 @@ final class MessageMigratorTest extends TestCase
         $this->assertSame('copied', $ledger->status('INBOX', 1));
     }
 
+    public function test_uses_raw_header_plus_body_when_available(): void
+    {
+        // No full raw is set, only a raw_header on the header + a body-only fetch,
+        // so a copy proves migrateOne used the header+body fast path (not fetchRaw).
+        $reader = new InMemoryReader();
+        $reader->body['INBOX:1'] = "Line one\r\nLine two";
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $header = $this->header(1);
+        $header['raw_header'] = "From: a@x\r\nSubject: Hi";
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $header, [], false);
+
+        $this->assertSame('copied', $action);
+        $this->assertSame("From: a@x\r\nSubject: Hi\r\n\r\nLine one\r\nLine two", $writer->appended[0]['raw']);
+    }
+
+    public function test_falls_back_to_fetch_raw_when_body_fetch_empty(): void
+    {
+        // raw_header present but no body-only available -> fall back to full fetchRaw.
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), 'FULLRAW');
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $header = $this->header(1);
+        $header['raw_header'] = "From: a@x";
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $header, [], false);
+
+        $this->assertSame('copied', $action);
+        $this->assertSame('FULLRAW', $writer->appended[0]['raw']);
+    }
+
     public function test_skips_when_message_id_present_on_destination(): void
     {
         $reader = new InMemoryReader();

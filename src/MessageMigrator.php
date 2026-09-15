@@ -61,7 +61,7 @@ final class MessageMigrator
             return 'would_copy';
         }
 
-        $raw = $reader->fetchRaw($srcFolder, $uid);
+        $raw = $this->buildRaw($reader, $srcFolder, $uid, $header);
         if ($raw === '') {
             $reason = 'empty source body (fetch failed or message unreadable)';
             $this->ledger->markFailed($srcFolder, $uid, $reason);
@@ -82,5 +82,22 @@ final class MessageMigrator
         $this->ledger->markFailed($srcFolder, $uid, $reason);
         $this->logger->error("Append failed: {$srcFolder} uid {$uid}: {$reason}");
         return 'failed';
+    }
+
+    /**
+     * Reconstruct the full RFC822 message. When discovery captured the raw header we
+     * only need the body (one fetch instead of re-fetching the whole message); if the
+     * body-only fetch is unavailable or empty we fall back to a full fetchRaw().
+     */
+    private function buildRaw(MailboxReaderInterface $reader, string $srcFolder, int $uid, array $header): string
+    {
+        $rawHeader = (string) ($header['raw_header'] ?? '');
+        if ($rawHeader !== '') {
+            $body = $reader->fetchBody($srcFolder, $uid);
+            if ($body !== '') {
+                return rtrim($rawHeader, "\r\n") . "\r\n\r\n" . $body;
+            }
+        }
+        return $reader->fetchRaw($srcFolder, $uid);
     }
 }

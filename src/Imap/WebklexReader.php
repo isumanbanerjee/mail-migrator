@@ -8,9 +8,13 @@ use RuntimeException;
 use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
+use Webklex\PHPIMAP\IMAP;
 
 final class WebklexReader implements MailboxReaderInterface
 {
+    /** Folder currently EXAMINEd on the connection, so fetchBody() selects at most once per folder. */
+    private ?string $bodyFolder = null;
+
     public function __construct(private Client $client) {}
 
     public function listFolders(): array
@@ -46,6 +50,10 @@ final class WebklexReader implements MailboxReaderInterface
                     // (the sha256 dedupe fallback, used only when there is no Message-ID).
                     $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
 
+                    // Capture the raw header now so the copy step only needs the body,
+                    // not a second full fetch of the message.
+                    $header = $message->getHeader();
+
                     $cb([
                         'uid' => (int) $message->getUid(),
                         'message_id' => $messageId,
@@ -54,6 +62,7 @@ final class WebklexReader implements MailboxReaderInterface
                         'size' => $size,
                         'internal_date' => $internalDate,
                         'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
+                        'raw_header' => $header !== null ? (string) $header->raw : '',
                     ]);
                 }
             },
@@ -83,6 +92,45 @@ final class WebklexReader implements MailboxReaderInterface
         } catch (Throwable) {
             return '';
         }
+    }
+
+    public function fetchBody(string $folder, int $uid): string
+    {
+        try {
+            // A UID FETCH needs the folder selected. EXAMINE (read-only) once per
+            // folder rather than per message so we don't add a round-trip each time.
+            if ($this->bodyFolder !== $folder) {
+                $this->getFolder($folder)->examine();
+                $this->bodyFolder = $folder;
+            }
+            $data = $this->client->getConnection()
+                ->content([$uid], 'RFC822', IMAP::ST_UID)
+                ->validatedData();
+
+            return $this->extractContent($data, $uid);
+        } catch (Throwable) {
+            $this->bodyFolder = null; // force re-select next time
+            return '';
+        }
+    }
+
+    /**
+     * webklex's low-level content() returns either the body string directly (single-id
+     * fast path) or an array keyed by uid (possibly wrapping ['RFC822.TEXT' => body]).
+     */
+    private function extractContent(mixed $data, int $uid): string
+    {
+        if (is_string($data)) {
+            return $data;
+        }
+        if (is_array($data)) {
+            $node = $data[$uid] ?? (count($data) === 1 ? reset($data) : '');
+            if (is_array($node)) {
+                $node = $node['RFC822.TEXT'] ?? reset($node);
+            }
+            return is_string($node) ? $node : '';
+        }
+        return '';
     }
 
     /**
