@@ -116,4 +116,46 @@ final class JobRepository
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
+
+    /**
+     * Per-status counts from the ledger for one job.
+     * @return array{copied:int,skipped:int,failed:int,pending:int,total:int}
+     */
+    public function ledgerCounts(int $jobId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT status, COUNT(*) c FROM job_ledger_messages WHERE job_id = :j GROUP BY status');
+        $stmt->execute([':j' => $jobId]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $copied = (int) ($rows['copied'] ?? 0);
+        $skipped = (int) ($rows['skipped'] ?? 0);
+        $failed = (int) ($rows['failed'] ?? 0);
+        $pending = (int) ($rows['pending'] ?? 0);
+        return [
+            'copied' => $copied, 'skipped' => $skipped, 'failed' => $failed, 'pending' => $pending,
+            'total' => $copied + $skipped + $failed + $pending,
+        ];
+    }
+
+    /**
+     * A page of ledger messages for one job, most-recently-updated first.
+     * @param string|null $status one of copied|skipped|failed|pending, or null for all
+     * @return array<int,array<string,mixed>>
+     */
+    public function ledgerMessages(int $jobId, ?string $status, int $limit, int $offset): array
+    {
+        $limit = max(1, min($limit, 200));
+        $offset = max(0, $offset);
+        $where = 'job_id = :j';
+        $params = [':j' => $jobId];
+        if (in_array($status, ['copied', 'skipped', 'failed', 'pending'], true)) {
+            $where .= ' AND status = :st';
+            $params[':st'] = $status;
+        }
+        $sql = "SELECT source_folder, source_uid, message_id, size_bytes, status, attempts, error, updated_at
+                FROM job_ledger_messages WHERE {$where}
+                ORDER BY updated_at DESC, id DESC LIMIT {$limit} OFFSET {$offset}";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
 }

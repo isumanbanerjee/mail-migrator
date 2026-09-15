@@ -29,18 +29,48 @@ final class DashboardController
 
     public function progress(Request $req, array $vars): Response
     {
-        $job = $this->jobs->find((int) $vars['id'], $this->auth->userId());
+        $id = (int) $vars['id'];
+        $job = $this->jobs->find($id, $this->auth->userId());
         if ($job === null) {
             return Response::json(['error' => 'not_found'], 404);
         }
+
+        $filter = (string) $req->query('status', 'all');
+        $filter = in_array($filter, ['copied', 'skipped', 'failed', 'pending'], true) ? $filter : 'all';
+        $perPage = 50;
+        $page = max(1, (int) $req->query('page', 1));
+
+        $counts = $this->jobs->ledgerCounts($id);
+        $rows = $this->jobs->ledgerMessages($id, $filter === 'all' ? null : $filter, $perPage + 1, ($page - 1) * $perPage);
+        $hasMore = count($rows) > $perPage;
+        $rows = array_slice($rows, 0, $perPage);
+
+        $done = $counts['copied'] + $counts['skipped'];
+        $percent = $counts['total'] > 0 ? (int) round($done / $counts['total'] * 100) : (int) $job['percent'];
+
+        $messages = array_map(static function (array $m): array {
+            return [
+                'folder' => (string) $m['source_folder'],
+                'uid' => (int) $m['source_uid'],
+                'message_id' => (string) ($m['message_id'] ?? ''),
+                'size' => (int) ($m['size_bytes'] ?? 0),
+                'status' => (string) $m['status'],
+                'attempts' => (int) ($m['attempts'] ?? 0),
+                'error' => (string) ($m['error'] ?? ''),
+                'updated_at' => (string) ($m['updated_at'] ?? ''),
+            ];
+        }, $rows);
+
         return Response::json([
             'state' => $job['state'],
-            'percent' => (int) $job['percent'],
-            'copied' => (int) $job['copied'],
-            'skipped' => (int) $job['skipped'],
-            'failed' => (int) $job['failed'],
-            'total' => (int) $job['total_messages'],
+            'percent' => $percent,
             'current_folder' => $job['current_folder'],
+            'counts' => $counts,
+            'filter' => $filter,
+            'page' => $page,
+            'per_page' => $perPage,
+            'has_more' => $hasMore,
+            'messages' => $messages,
         ]);
     }
 }
