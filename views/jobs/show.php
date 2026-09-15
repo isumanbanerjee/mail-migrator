@@ -1,5 +1,5 @@
 <?php use App\Support\Csrf; $t = Csrf::token($session); $jid = (int) $job['id']; ?>
-<div x-data="jobProgress(<?= $jid ?>, '<?= $e($job['state']) ?>')" x-init="init()">
+<div x-data="jobProgress(<?= $jid ?>, '<?= $e($job['state']) ?>', '<?= $e($t) ?>')" x-init="init()">
   <div class="job-head">
     <h1><?= $e($job['name']) ?></h1>
     <span class="badge" :class="'badge--' + stateClass(state)" x-text="state"></span>
@@ -60,7 +60,7 @@
   </div>
 
   <table class="msg-table">
-    <thead><tr><th>Folder</th><th>Subject</th><th>Sent date</th><th>Size</th><th>Status</th><th>Info</th></tr></thead>
+    <thead><tr><th>Folder</th><th>Subject</th><th>Sent date</th><th>Size</th><th>Status</th><th>Info</th><th></th></tr></thead>
     <tbody>
       <template x-for="m in messages" :key="m.folder + ':' + m.uid">
         <tr>
@@ -70,9 +70,17 @@
           <td class="nowrap" x-text="humanSize(m.size)"></td>
           <td><span class="badge" :class="'badge--' + stateClass(m.status)" x-text="m.status"></span></td>
           <td class="info" :title="m.error" x-text="infoText(m)"></td>
+          <td class="nowrap">
+            <template x-if="m.status === 'failed'">
+              <span>
+                <button type="button" class="btn btn--sm" @click="retryMessage(m)" :disabled="m._retrying" x-text="m._retrying ? '…' : 'Retry'"></button>
+                <button type="button" class="btn btn--sm" @click="showError(m)" x-show="m.error" title="Show full error">Log</button>
+              </span>
+            </template>
+          </td>
         </tr>
       </template>
-      <tr x-show="messages.length === 0"><td colspan="6" class="muted empty">No messages<span x-show="filter !== 'all'" x-text="' with status: ' + filter"></span> yet.</td></tr>
+      <tr x-show="messages.length === 0"><td colspan="7" class="muted empty">No messages<span x-show="filter !== 'all'" x-text="' with status: ' + filter"></span> yet.</td></tr>
     </tbody>
   </table>
 
@@ -83,15 +91,23 @@
   </div>
 
   <p><a href="/dashboard">&larr; Back to dashboard</a></p>
+
+  <div class="modal" x-show="errorModal" x-cloak @click.self="errorModal = ''" style="display:none">
+    <div class="modal__box">
+      <h3>Message error</h3>
+      <pre x-text="errorModal"></pre>
+      <div class="modal__actions"><button type="button" class="btn" @click="errorModal = ''">Close</button></div>
+    </div>
+  </div>
 </div>
 
 <script>
-function jobProgress(id, initialState) {
+function jobProgress(id, initialState, csrf) {
   return {
-    id, state: initialState, percent: 0, currentFolder: '',
+    id, state: initialState, csrf, percent: 0, currentFolder: '',
     counts: { copied: 0, skipped: 0, failed: 0, pending: 0, total: 0 },
     messages: [], filter: 'all', page: 1, hasMore: false,
-    limit: null, since: null, lastError: '', auto: true, loading: false, timer: null,
+    limit: null, since: null, lastError: '', errorModal: '', auto: true, loading: false, timer: null,
     init() {
       this.load();
       this.$watch('auto', v => v ? this.start() : this.stop());
@@ -117,6 +133,19 @@ function jobProgress(id, initialState) {
     setFilter(f) { this.filter = f; this.page = 1; this.load(); },
     next() { if (this.hasMore) { this.page++; this.load(); } },
     prev() { if (this.page > 1) { this.page--; this.load(); } },
+    showError(m) { this.errorModal = m.error || '(no error recorded)'; },
+    async retryMessage(m) {
+      m._retrying = true;
+      try {
+        const body = new URLSearchParams({ _csrf: this.csrf, folder: m.folder, uid: m.uid });
+        const r = await fetch(`/jobs/${this.id}/messages/retry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        if (r.ok) { await this.load(); } else { m._retrying = false; }
+      } catch (e) { m._retrying = false; }
+    },
     infoText(m) {
       if (m.status === 'failed') return m.error || 'failed';
       let s = m.unread ? 'Unread' : 'Read';

@@ -44,6 +44,31 @@ final class JobRepositoryWorkerTest extends TestCase
         $this->assertSame('nope', $repo->find($id, 1)['last_error']);
     }
 
+    public function test_reset_ledger_message_and_mark_queued(): void
+    {
+        [$repo, $pdo] = $this->repo();
+        $id = $repo->create(1, $this->data());
+        $repo->systemTransition($id, 'failed', 'boom');
+
+        $now = date('Y-m-d H:i:s');
+        $pdo->prepare('INSERT INTO job_ledger_messages
+            (job_id, source_folder, dest_folder, source_uid, status, attempts, error, created_at, updated_at)
+            VALUES (:j,:sf,:df,:uid,:st,:a,:er,:ca,:ua)')
+            ->execute([':j' => $id, ':sf' => 'INBOX', ':df' => 'INBOX', ':uid' => 7, ':st' => 'failed',
+                ':a' => 2, ':er' => 'append failed', ':ca' => $now, ':ua' => $now]);
+
+        $this->assertTrue($repo->resetLedgerMessage($id, 'INBOX', 7));
+        $row = $pdo->query("SELECT status, error FROM job_ledger_messages WHERE job_id={$id} AND source_uid=7")->fetch();
+        $this->assertSame('pending', $row['status']);
+        $this->assertNull($row['error']);
+
+        // markQueued clears state + error + lock so the worker can pick it up
+        $this->assertTrue($repo->markQueued($id, 1));
+        $job = $repo->find($id, 1);
+        $this->assertSame('queued', $job['state']);
+        $this->assertNull($job['last_error']);
+    }
+
     public function test_claim_helpers_respect_state_and_stale(): void
     {
         [$repo, $pdo] = $this->repo();

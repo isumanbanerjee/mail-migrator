@@ -457,3 +457,20 @@ strong {
 .msg-table .nowrap { white-space: nowrap; }
 
 .pager { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+
+.btn--sm { padding: 3px 9px; font-size: 0.78rem; margin-left: 4px; }
+.btn--sm:first-child { margin-left: 0; }
+
+[x-cloak] { display: none !important; }
+.modal {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+}
+.modal__box {
+  background: var(--color-bg-elevated); border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-elevated);
+  padding: 20px; max-width: 640px; width: 100%; max-height: 80vh; overflow: auto;
+}
+.modal__box h3 { margin: 0 0 12px; }
+.modal__box pre { white-space: pre-wrap; word-break: break-word; }
+.modal__actions { margin-top: 14px; text-align: right; }

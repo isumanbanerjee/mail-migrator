@@ -71,6 +71,17 @@ final class JobRepository
         return $stmt->rowCount() > 0;
     }
 
+    /** Reset a single ledger message back to pending so the worker re-attempts just that one. */
+    public function resetLedgerMessage(int $jobId, string $folder, int $uid): bool
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE job_ledger_messages SET status='pending', error=NULL, updated_at=:u
+             WHERE job_id=:j AND source_folder=:sf AND source_uid=:uid"
+        );
+        $stmt->execute([':u' => date('Y-m-d H:i:s'), ':j' => $jobId, ':sf' => $folder, ':uid' => $uid]);
+        return $stmt->rowCount() > 0;
+    }
+
     /** Move a job to 'queued', clearing any stale error and lock so a worker can pick it up. */
     public function markQueued(int $id, int $userId): bool
     {

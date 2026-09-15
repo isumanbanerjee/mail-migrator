@@ -184,6 +184,27 @@ final class JobController
         return Response::redirect('/jobs/' . $id);
     }
 
+    public function retryMessage(Request $req, array $vars): Response
+    {
+        $id = (int) $vars['id'];
+        $job = $this->mustFind($id);
+        if ($job === null) {
+            return Response::json(['error' => 'not_found'], 404);
+        }
+        $folder = (string) $req->input('folder');
+        $uid = (int) $req->input('uid');
+        if ($folder === '' || $uid <= 0) {
+            return Response::json(['error' => 'bad_request'], 400);
+        }
+        $this->jobs->resetLedgerMessage($id, $folder, $uid);
+        // Wake the job so a worker re-processes the reset message. Don't touch a job that's
+        // actively running (it will retry the pending row on its current/next scan).
+        if ($job['state'] !== 'running') {
+            $this->jobs->markQueued($id, $this->auth->userId());
+        }
+        return Response::json(['ok' => true]);
+    }
+
     private function guarded(int $id, string $action, string $target): Response
     {
         $job = $this->mustFind($id);
