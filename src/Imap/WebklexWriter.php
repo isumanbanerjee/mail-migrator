@@ -10,7 +10,14 @@ use Webklex\PHPIMAP\Client;
 
 final class WebklexWriter implements MailboxWriterInterface
 {
+    private ?string $lastError = null;
+
     public function __construct(private Client $client, private ?Logger $logger = null) {}
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
 
     public function ensureFolder(string $folder): void
     {
@@ -42,8 +49,18 @@ final class WebklexWriter implements MailboxWriterInterface
 
     public function append(string $folder, string $raw, array $flags, string $internalDate): bool
     {
+        $this->lastError = null;
+
         $f = $this->client->getFolderByPath($folder);
         if ($f === null) {
+            $this->lastError = "destination folder not found: {$folder}";
+            $this->logger?->error('IMAP append failed: ' . $this->lastError);
+            return false;
+        }
+
+        if ($raw === '') {
+            $this->lastError = 'refusing to append an empty message body';
+            $this->logger?->error('IMAP append failed: ' . $this->lastError);
             return false;
         }
 
@@ -52,9 +69,14 @@ final class WebklexWriter implements MailboxWriterInterface
         // (or ImapServerErrorException / ImapBadRequestException) on a NO/BAD APPEND rather than returning
         // false - so reaching the return below without an exception means the append succeeded, even if
         // the response array happens to be empty.
+        // An empty internal date is not a valid IMAP APPEND date-time; pass null so the
+        // server stamps "now" instead of rejecting a malformed date literal.
+        $date = $internalDate !== '' ? $internalDate : null;
+
         try {
-            $f->appendMessage($raw, $flags, $internalDate);
+            $f->appendMessage($raw, $flags, $date);
         } catch (Throwable $e) {
+            $this->lastError = $e->getMessage();
             $this->logger?->error('IMAP append failed: ' . $e->getMessage());
             return false;
         }

@@ -14,6 +14,13 @@ final class InMemoryWriter implements MailboxWriterInterface
     /** @var array<int,array{folder:string,raw:string,flags:array,date:string}> */
     public array $appended = [];
     public bool $failAppend = false;
+    public ?string $appendError = 'simulated append failure';
+    private ?string $lastError = null;
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
 
     public function ensureFolder(string $folder): void
     {
@@ -29,7 +36,9 @@ final class InMemoryWriter implements MailboxWriterInterface
 
     public function append(string $folder, string $raw, array $flags, string $internalDate): bool
     {
+        $this->lastError = null;
         if ($this->failAppend) {
+            $this->lastError = $this->appendError;
             return false;
         }
         $this->appended[] = ['folder' => $folder, 'raw' => $raw, 'flags' => $flags, 'date' => $internalDate];

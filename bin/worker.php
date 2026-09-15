@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+// php-imap 5.5.0 emits E_DEPRECATED under PHP 8.5 for nearly every method call,
+// which floods worker.log and buries real errors. Keep everything except deprecations.
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 require __DIR__ . '/../vendor/autoload.php';
 
 use App\Repositories\EntitlementRepository;

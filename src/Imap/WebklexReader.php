@@ -66,7 +66,20 @@ final class WebklexReader implements MailboxReaderInterface
         try {
             $f = $this->getFolder($folder);
             $message = $f->query()->getMessageByUid($uid);
-            return (string) $message->getRawBody();
+
+            // Webklex fetches the header (BODY[HEADER]) and body (BODY[TEXT]) separately.
+            // getRawBody() returns ONLY the body, so appending it alone yields a headerless
+            // blob the destination rejects ("Unable to parse message"). Reconstruct the full
+            // RFC822 message the same way Webklex's own Message::save() does: header + blank
+            // line + body.
+            $header = $message->getHeader();
+            $rawHeader = $header !== null ? rtrim($header->raw, "\r\n") : '';
+            $rawBody = (string) $message->getRawBody();
+            if ($rawHeader === '' && $rawBody === '') {
+                return '';
+            }
+
+            return $rawHeader . "\r\n\r\n" . $rawBody;
         } catch (Throwable) {
             return '';
         }

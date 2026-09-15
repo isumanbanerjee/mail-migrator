@@ -61,6 +61,13 @@ final class MessageMigrator
         }
 
         $raw = $reader->fetchRaw($srcFolder, $uid);
+        if ($raw === '') {
+            $reason = 'empty source body (fetch failed or message unreadable)';
+            $this->ledger->markFailed($srcFolder, $uid, $reason);
+            $this->logger->error("Fetch failed: {$srcFolder} uid {$uid}: {$reason}");
+            return 'failed';
+        }
+
         $ok = $this->writer->append(
             $destFolder, $raw, (array) ($header['flags'] ?? []), (string) $header['internal_date']
         );
@@ -70,8 +77,9 @@ final class MessageMigrator
             return 'copied';
         }
 
-        $this->ledger->markFailed($srcFolder, $uid, 'append failed');
-        $this->logger->error("Append failed: {$srcFolder} uid {$uid}");
+        $reason = $this->writer->lastError() ?? 'append failed';
+        $this->ledger->markFailed($srcFolder, $uid, $reason);
+        $this->logger->error("Append failed: {$srcFolder} uid {$uid}: {$reason}");
         return 'failed';
     }
 }

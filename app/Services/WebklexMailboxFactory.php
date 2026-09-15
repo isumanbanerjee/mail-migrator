@@ -7,6 +7,7 @@ use App\Support\Encryptor;
 use EmailMigration\Imap\ImapConnection;
 use EmailMigration\Imap\WebklexReader;
 use EmailMigration\Imap\WebklexWriter;
+use EmailMigration\Support\Logger;
 
 final class WebklexMailboxFactory implements MailboxFactoryInterface
 {
@@ -26,6 +27,11 @@ final class WebklexMailboxFactory implements MailboxFactoryInterface
             'username' => $this->enc->decrypt($job['dest_username_enc']),
             'password' => $this->enc->decrypt($job['dest_password_enc']),
         ]);
-        return ['reader' => new WebklexReader($source), 'writer' => new WebklexWriter($dest)];
+        $logger = new Logger('error');
+        foreach ([$this->enc->decrypt($job['source_password_enc']), $this->enc->decrypt($job['dest_password_enc'])] as $secret) {
+            $logger->addSecret($secret);
+        }
+
+        return ['reader' => new WebklexReader($source), 'writer' => new WebklexWriter($dest, $logger)];
     }
 }
