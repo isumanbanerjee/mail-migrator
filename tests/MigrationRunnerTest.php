@@ -67,7 +67,9 @@ final class MigrationRunnerTest extends TestCase
 
         $summary = $runner2->run();
         $this->assertSame(0, $summary['copied']);
-        $this->assertSame(1, $summary['skipped']);
+        // Incremental resume: the already-processed UID isn't re-read at all (skipped=0),
+        // and crucially there is no duplicate append.
+        $this->assertSame(0, $summary['skipped']);
         $this->assertCount(1, $writer->appended); // no new appends
     }
 

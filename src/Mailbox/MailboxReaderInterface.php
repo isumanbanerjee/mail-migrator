@@ -10,8 +10,13 @@ interface MailboxReaderInterface
 
     public function folderUidValidity(string $folder): int;
 
-    /** @param callable(array):void $cb */
-    public function eachHeader(string $folder, callable $cb): void;
+    /**
+     * @param callable(array):void $cb
+     * @param int $sinceUid only yield messages with UID greater than this (0 = all).
+     *                      Lets a resumed run skip messages already processed instead of
+     *                      re-reading the whole folder every time.
+     */
+    public function eachHeader(string $folder, callable $cb, int $sinceUid = 0): void;
 
     public function fetchRaw(string $folder, int $uid): string;
 

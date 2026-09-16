@@ -33,9 +33,12 @@ final class InMemoryReader implements MailboxReaderInterface
         return $this->uidValidity[$folder] ?? 1;
     }
 
-    public function eachHeader(string $folder, callable $cb): void
+    public function eachHeader(string $folder, callable $cb, int $sinceUid = 0): void
     {
         foreach ($this->folders[$folder] ?? [] as $h) {
+            if ($sinceUid > 0 && (int) $h['uid'] <= $sinceUid) {
+                continue;
+            }
             $cb($h);
         }
     }

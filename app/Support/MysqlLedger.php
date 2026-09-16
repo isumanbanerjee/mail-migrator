@@ -65,6 +65,13 @@ final class MysqlLedger implements LedgerInterface
         return $stmt->fetchColumn() !== false;
     }
 
+    public function maxProcessedUid(string $sourceFolder): int
+    {
+        $stmt = $this->pdo->prepare('SELECT MAX(source_uid) FROM job_ledger_messages WHERE job_id = :j AND source_folder = :sf');
+        $stmt->execute([':j' => $this->jobId, ':sf' => $sourceFolder]);
+        return (int) $stmt->fetchColumn();
+    }
+
     public function markCopied(string $sf, int $uid, int $sizeBytes = 0): void { $this->setStatus($sf, $uid, 'copied', null, $sizeBytes); }
     public function markSkipped(string $sf, int $uid): void { $this->setStatus($sf, $uid, 'skipped', null); }
     public function markFailed(string $sf, int $uid, string $error): void { $this->setStatus($sf, $uid, 'failed', $error); }

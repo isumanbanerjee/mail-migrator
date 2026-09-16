@@ -63,6 +63,9 @@ final class MigrationRunner
             // every cron tick.
             $destIndex = $alreadyScanned ? [] : $this->writer->existingMessageIds($destFolder);
 
+            // Resume from the highest UID already recorded so we don't re-read the whole
+            // folder on every run (which stalled large folders before they could advance).
+            $sinceUid = $this->ledger->maxProcessedUid($srcFolder);
             $this->reader->eachHeader($srcFolder, function (array $header) use (
                 $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress
             ) {
@@ -91,7 +94,7 @@ final class MigrationRunner
                         'would_copy' => $this->wouldCopy,
                     ]);
                 }
-            });
+            }, $sinceUid);
         }
 
         return [

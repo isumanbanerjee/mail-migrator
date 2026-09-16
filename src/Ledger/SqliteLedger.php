@@ -104,6 +104,13 @@ final class SqliteLedger implements LedgerInterface
         return $stmt->fetchColumn() !== false;
     }
 
+    public function maxProcessedUid(string $sourceFolder): int
+    {
+        $stmt = $this->pdo->prepare('SELECT MAX(source_uid) FROM ledger_messages WHERE source_folder = :sf');
+        $stmt->execute([':sf' => $sourceFolder]);
+        return (int) $stmt->fetchColumn();
+    }
+
     public function markCopied(string $sourceFolder, int $sourceUid, int $sizeBytes = 0): void
     {
         $this->setStatus($sourceFolder, $sourceUid, 'copied', null, $sizeBytes);

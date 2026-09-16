@@ -35,12 +35,22 @@ final class WebklexReader implements MailboxReaderInterface
         return (int) ($status['uidvalidity'] ?? 0);
     }
 
-    public function eachHeader(string $folder, callable $cb): void
+    public function eachHeader(string $folder, callable $cb, int $sinceUid = 0): void
     {
         $f = $this->getFolder($folder);
-        $f->query()->whereAll()->setFetchBody(false)->setFetchFlags(true)->chunked(
-            function ($messages) use ($cb) {
+        // Resume from where we left off: UID "{sinceUid+1}:*" fetches only messages newer
+        // than the highest one already processed, so a resumed run doesn't re-read the whole
+        // folder every time (which was exhausting the time budget on large folders).
+        $query = $f->query()->setFetchBody(false)->setFetchFlags(true);
+        $query = $sinceUid > 0 ? $query->whereUid(($sinceUid + 1) . ':*') : $query->whereAll();
+        $query->chunked(
+            function ($messages) use ($cb, $sinceUid) {
                 foreach ($messages as $message) {
+                    // "N:*" returns the highest UID even when N is past the end, so drop
+                    // anything we've already processed.
+                    if ($sinceUid > 0 && (int) $message->getUid() <= $sinceUid) {
+                        continue;
+                    }
                     $dateAttr = $message->getDate();
                     $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
 

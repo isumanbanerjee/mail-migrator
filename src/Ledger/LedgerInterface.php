@@ -12,6 +12,8 @@ interface LedgerInterface
     public function status(string $sourceFolder, int $sourceUid): ?string;
     /** True once any message row exists for this folder (i.e. we have scanned it before). */
     public function folderScanned(string $sourceFolder): bool;
+    /** Highest source UID recorded for this folder (0 if none) — used to resume incrementally. */
+    public function maxProcessedUid(string $sourceFolder): int;
     public function markCopied(string $sourceFolder, int $sourceUid, int $sizeBytes = 0): void;
     public function markSkipped(string $sourceFolder, int $sourceUid): void;
     public function markFailed(string $sourceFolder, int $sourceUid, string $error): void;
