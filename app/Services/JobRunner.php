@@ -42,7 +42,8 @@ final class JobRunner
             $options = json_decode((string) ($job['options'] ?? '{}'), true) ?: [];
             $mapper = new FolderMapper((array) ($options['folder_map'] ?? []));
             $logger = new Logger('error');
-            $migrator = new MessageMigrator($mb['writer'], $ledger, $logger);
+            $maxMessageBytes = ((int) ($_ENV['MAX_MESSAGE_MB'] ?? 35)) * 1024 * 1024;
+            $migrator = new MessageMigrator($mb['writer'], $ledger, $logger, $maxMessageBytes);
             $runner = new MigrationRunner($mb['reader'], $mb['writer'], $ledger, $mapper, $migrator, $logger, [
                 'dry_run' => ($job['mode'] ?? 'live') === 'dry_run',
                 'since' => $options['since'] ?? null,

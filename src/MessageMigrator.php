@@ -14,6 +14,7 @@ final class MessageMigrator
         private MailboxWriterInterface $writer,
         private LedgerInterface $ledger,
         private Logger $logger,
+        private int $maxMessageBytes = 0,
     ) {}
 
     /**
@@ -66,6 +67,17 @@ final class MessageMigrator
             $reason = 'empty source body (fetch failed or message unreadable)';
             $this->ledger->markFailed($srcFolder, $uid, $reason);
             $this->logger->error("Fetch failed: {$srcFolder} uid {$uid}: {$reason}");
+            return 'failed';
+        }
+
+        // Skip oversized messages: a large APPEND is where the destination (Gmail) tends
+        // to stall, and it can't accept a message over its limit anyway. Fail fast instead
+        // of letting one giant email hang or block the queue.
+        if ($this->maxMessageBytes > 0 && strlen($raw) > $this->maxMessageBytes) {
+            $mb = round(strlen($raw) / 1048576, 1);
+            $reason = "message too large ({$mb} MB) — exceeds the destination size limit";
+            $this->ledger->markFailed($srcFolder, $uid, $reason);
+            $this->logger->error("Skipped: {$srcFolder} uid {$uid}: {$reason}");
             return 'failed';
         }
 

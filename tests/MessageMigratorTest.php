@@ -45,6 +45,21 @@ final class MessageMigratorTest extends TestCase
         $this->assertSame('copied', $ledger->status('INBOX', 1));
     }
 
+    public function test_oversized_message_is_failed_not_appended(): void
+    {
+        $reader = new InMemoryReader();
+        $reader->addMessage('INBOX', $this->header(1), str_repeat('x', 2048));
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'), 1024); // 1KB cap
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $this->header(1), [], false);
+
+        $this->assertSame('failed', $action);
+        $this->assertCount(0, $writer->appended);
+        $this->assertSame('failed', $ledger->status('INBOX', 1));
+    }
+
     public function test_uses_raw_header_plus_body_when_available(): void
     {
         // No full raw is set, only a raw_header on the header + a body-only fetch,
