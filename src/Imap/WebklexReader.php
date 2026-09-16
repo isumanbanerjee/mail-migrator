@@ -5,6 +5,7 @@ namespace EmailMigration\Imap;
 
 use EmailMigration\Mailbox\MailboxReaderInterface;
 use EmailMigration\Support\MimeHeader;
+use EmailMigration\Support\Timeout;
 use RuntimeException;
 use Throwable;
 use Webklex\PHPIMAP\Client;
@@ -16,7 +17,7 @@ final class WebklexReader implements MailboxReaderInterface
     /** Folder currently EXAMINEd on the connection, so fetchBody() selects at most once per folder. */
     private ?string $bodyFolder = null;
 
-    public function __construct(private Client $client) {}
+    public function __construct(private Client $client, private int $opTimeout = 120) {}
 
     public function listFolders(): array
     {
@@ -75,7 +76,7 @@ final class WebklexReader implements MailboxReaderInterface
     {
         try {
             $f = $this->getFolder($folder);
-            $message = $f->query()->getMessageByUid($uid);
+            $message = Timeout::run($this->opTimeout, fn () => $f->query()->getMessageByUid($uid));
 
             // Webklex fetches the header (BODY[HEADER]) and body (BODY[TEXT]) separately.
             // getRawBody() returns ONLY the body, so appending it alone yields a headerless
@@ -104,9 +105,10 @@ final class WebklexReader implements MailboxReaderInterface
                 $this->getFolder($folder)->examine();
                 $this->bodyFolder = $folder;
             }
-            $data = $this->client->getConnection()
-                ->content([$uid], 'RFC822', IMAP::ST_UID)
-                ->validatedData();
+            $data = Timeout::run(
+                $this->opTimeout,
+                fn () => $this->client->getConnection()->content([$uid], 'RFC822', IMAP::ST_UID)->validatedData()
+            );
 
             return $this->extractContent($data, $uid);
         } catch (Throwable) {

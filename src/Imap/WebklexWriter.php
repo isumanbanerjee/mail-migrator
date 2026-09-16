@@ -5,6 +5,7 @@ namespace EmailMigration\Imap;
 
 use EmailMigration\Mailbox\MailboxWriterInterface;
 use EmailMigration\Support\Logger;
+use EmailMigration\Support\Timeout;
 use Throwable;
 use Webklex\PHPIMAP\Client;
 
@@ -12,7 +13,11 @@ final class WebklexWriter implements MailboxWriterInterface
 {
     private ?string $lastError = null;
 
-    public function __construct(private Client $client, private ?Logger $logger = null) {}
+    public function __construct(
+        private Client $client,
+        private ?Logger $logger = null,
+        private int $opTimeout = 120,
+    ) {}
 
     public function lastError(): ?string
     {
@@ -74,7 +79,10 @@ final class WebklexWriter implements MailboxWriterInterface
         $date = $internalDate !== '' ? $internalDate : null;
 
         try {
-            $f->appendMessage($raw, $flags, $date);
+            // Hard timeout: a blocking read of Gmail's APPEND response can hang
+            // indefinitely (stream_set_timeout is unreliable on SSL sockets), which
+            // would freeze the whole worker. Bound it so it fails and moves on.
+            Timeout::run($this->opTimeout, fn () => $f->appendMessage($raw, $flags, $date));
         } catch (Throwable $e) {
             $this->lastError = $e->getMessage();
             $this->logger?->error('IMAP append failed: ' . $e->getMessage());

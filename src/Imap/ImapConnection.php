@@ -19,6 +19,7 @@ final class ImapConnection
             'username' => $account['username'],
             'password' => $account['password'],
             'protocol' => 'imap',
+            'timeout' => (int) ($account['timeout'] ?? 60),
         ]);
         $client->connect();
         return $client;
