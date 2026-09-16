@@ -63,8 +63,12 @@ final class WebklexReader implements MailboxReaderInterface
         //    blocking everything after it.
         foreach (array_chunk($uids, 100) as $batch) {
             try {
-                $messages = Timeout::run($this->opTimeout, function () use ($f, $batch) {
-                    return $f->query()->whereUidIn($batch)->setFetchBody(false)->setFetchFlags(true)->get();
+                // Pass the batch as a comma-separated UID set string; whereUidIn() with an
+                // array trips an "Array to string conversion" in this webklex version and
+                // silently returns nothing (forcing the slow one-at-a-time fallback).
+                $set = implode(',', $batch);
+                $messages = Timeout::run($this->opTimeout, function () use ($f, $set) {
+                    return $f->query()->whereUid($set)->setFetchBody(false)->setFetchFlags(true)->get();
                 });
                 foreach ($messages as $message) {
                     $cb($this->headerArray($message));
