@@ -21,17 +21,19 @@ final class WebklexReader implements MailboxReaderInterface
 
     public function listFolders(): array
     {
-        $paths = [];
-        foreach ($this->client->getFolders(false) as $folder) {
-            $paths[] = $folder->path;
-        }
-        return $paths;
+        return Timeout::run($this->opTimeout, function (): array {
+            $paths = [];
+            foreach ($this->client->getFolders(false) as $folder) {
+                $paths[] = $folder->path;
+            }
+            return $paths;
+        });
     }
 
     public function folderUidValidity(string $folder): int
     {
         $f = $this->getFolder($folder);
-        $status = $f->getStatus(); // ['uidvalidity' => ..., ...]
+        $status = Timeout::run($this->opTimeout, fn () => $f->getStatus());
         return (int) ($status['uidvalidity'] ?? 0);
     }
 
@@ -41,45 +43,64 @@ final class WebklexReader implements MailboxReaderInterface
         // Resume from where we left off: UID "{sinceUid+1}:*" fetches only messages newer
         // than the highest one already processed, so a resumed run doesn't re-read the whole
         // folder every time (which was exhausting the time budget on large folders).
-        $query = $f->query()->setFetchBody(false)->setFetchFlags(true);
-        $query = $sinceUid > 0 ? $query->whereUid(($sinceUid + 1) . ':*') : $query->whereAll();
-        $query->chunked(
-            function ($messages) use ($cb, $sinceUid) {
-                foreach ($messages as $message) {
-                    // "N:*" returns the highest UID even when N is past the end, so drop
-                    // anything we've already processed.
-                    if ($sinceUid > 0 && (int) $message->getUid() <= $sinceUid) {
-                        continue;
-                    }
-                    $dateAttr = $message->getDate();
-                    $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
+        $range = $sinceUid > 0 ? (($sinceUid + 1) . ':*') : null;
+        $pageSize = 200;
+        $page = 1;
 
-                    $from = $message->getFrom();
-                    $fromMail = $from[0]->mail ?? '';
+        while (true) {
+            // Page manually so EACH network fetch is individually timeout-guarded. webklex
+            // reads a byte at a time and can block forever on an SSL socket; without this a
+            // hung header fetch during discovery freezes the whole worker.
+            $messages = Timeout::run($this->opTimeout, function () use ($f, $range, $pageSize, $page) {
+                $q = $f->query()->setFetchBody(false)->setFetchFlags(true);
+                $q = $range !== null ? $q->whereUid($range) : $q->whereAll();
+                return $q->limit($pageSize, $page)->get();
+            });
 
-                    $messageId = (string) $message->getMessageId();
-                    // Only pay for the RFC822.SIZE round-trip when we'll actually need it
-                    // (the sha256 dedupe fallback, used only when there is no Message-ID).
-                    $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
+            $count = $messages->count();
+            if ($count === 0) {
+                break;
+            }
 
-                    // Capture the raw header now so the copy step only needs the body,
-                    // not a second full fetch of the message.
-                    $header = $message->getHeader();
-
-                    $cb([
-                        'uid' => (int) $message->getUid(),
-                        'message_id' => $messageId,
-                        'from' => (string) $fromMail,
-                        'subject' => MimeHeader::decode((string) $message->getSubject()),
-                        'size' => $size,
-                        'internal_date' => $internalDate,
-                        'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
-                        'raw_header' => $header !== null ? (string) $header->raw : '',
-                    ]);
+            foreach ($messages as $message) {
+                $uid = (int) $message->getUid();
+                // "N:*" returns the highest UID even when N is past the end, so drop
+                // anything we've already processed.
+                if ($sinceUid > 0 && $uid <= $sinceUid) {
+                    continue;
                 }
-            },
-            200
-        );
+                $dateAttr = $message->getDate();
+                $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
+
+                $from = $message->getFrom();
+                $fromMail = $from[0]->mail ?? '';
+
+                $messageId = (string) $message->getMessageId();
+                // Only pay for the RFC822.SIZE round-trip when we'll actually need it
+                // (the sha256 dedupe fallback, used only when there is no Message-ID).
+                $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
+
+                // Capture the raw header now so the copy step only needs the body,
+                // not a second full fetch of the message.
+                $header = $message->getHeader();
+
+                $cb([
+                    'uid' => $uid,
+                    'message_id' => $messageId,
+                    'from' => (string) $fromMail,
+                    'subject' => MimeHeader::decode((string) $message->getSubject()),
+                    'size' => $size,
+                    'internal_date' => $internalDate,
+                    'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
+                    'raw_header' => $header !== null ? (string) $header->raw : '',
+                ]);
+            }
+
+            if ($count < $pageSize) {
+                break;
+            }
+            $page++;
+        }
     }
 
     public function fetchRaw(string $folder, int $uid): string
@@ -112,7 +133,8 @@ final class WebklexReader implements MailboxReaderInterface
             // A UID FETCH needs the folder selected. EXAMINE (read-only) once per
             // folder rather than per message so we don't add a round-trip each time.
             if ($this->bodyFolder !== $folder) {
-                $this->getFolder($folder)->examine();
+                $target = $this->getFolder($folder);
+                Timeout::run($this->opTimeout, fn () => $target->examine());
                 $this->bodyFolder = $folder;
             }
             $data = Timeout::run(

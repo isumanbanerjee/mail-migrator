@@ -26,29 +26,39 @@ final class WebklexWriter implements MailboxWriterInterface
 
     public function ensureFolder(string $folder): void
     {
-        if ($this->client->getFolderByPath($folder) === null) {
-            $this->client->createFolder($folder, false);
-        }
+        Timeout::run($this->opTimeout, function () use ($folder): void {
+            if ($this->client->getFolderByPath($folder) === null) {
+                $this->client->createFolder($folder, false);
+            }
+        });
     }
 
     public function existingMessageIds(string $folder): array
     {
         $ids = [];
-        $f = $this->client->getFolderByPath($folder);
+        $f = Timeout::run($this->opTimeout, fn () => $this->client->getFolderByPath($folder));
         if ($f === null) {
             return $ids;
         }
-        $f->query()->whereAll()->setFetchBody(false)->setFetchFlags(false)->chunked(
-            function ($messages) use (&$ids) {
-                foreach ($messages as $message) {
-                    $mid = (string) $message->getMessageId();
-                    if ($mid !== '') {
-                        $ids[] = $mid;
-                    }
+        $page = 1;
+        while (true) {
+            $messages = Timeout::run($this->opTimeout, function () use ($f, $page) {
+                return $f->query()->whereAll()->setFetchBody(false)->setFetchFlags(false)->limit(500, $page)->get();
+            });
+            if ($messages->count() === 0) {
+                break;
+            }
+            foreach ($messages as $message) {
+                $mid = (string) $message->getMessageId();
+                if ($mid !== '') {
+                    $ids[] = $mid;
                 }
-            },
-            500
-        );
+            }
+            if ($messages->count() < 500) {
+                break;
+            }
+            $page++;
+        }
         return $ids;
     }
 

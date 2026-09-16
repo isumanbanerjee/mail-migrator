@@ -7,6 +7,7 @@ use EmailMigration\Ledger\LedgerInterface;
 use EmailMigration\Mailbox\MailboxReaderInterface;
 use EmailMigration\Mailbox\MailboxWriterInterface;
 use EmailMigration\Support\Logger;
+use EmailMigration\Support\TimeoutException;
 
 final class MigrationRunner
 {
@@ -66,9 +67,10 @@ final class MigrationRunner
             // Resume from the highest UID already recorded so we don't re-read the whole
             // folder on every run (which stalled large folders before they could advance).
             $sinceUid = $this->ledger->maxProcessedUid($srcFolder);
-            $this->reader->eachHeader($srcFolder, function (array $header) use (
-                $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress
-            ) {
+            try {
+                $this->reader->eachHeader($srcFolder, function (array $header) use (
+                    $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress
+                ) {
                 if ($limit !== null && ($this->copied + $this->wouldCopy) >= $limit) {
                     return;
                 }
@@ -94,7 +96,12 @@ final class MigrationRunner
                         'would_copy' => $this->wouldCopy,
                     ]);
                 }
-            }, $sinceUid);
+                }, $sinceUid);
+            } catch (TimeoutException $e) {
+                // A hung read during discovery — don't fail the whole job. Skip the rest of
+                // this folder for now; the next run resumes it from the last recorded UID.
+                $this->logger->warn("Discovery timed out on {$srcFolder}; resuming next run: " . $e->getMessage());
+            }
         }
 
         return [
