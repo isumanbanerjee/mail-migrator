@@ -45,6 +45,23 @@ final class MessageMigratorTest extends TestCase
         $this->assertSame('copied', $ledger->status('INBOX', 1));
     }
 
+    public function test_fetch_failed_header_is_recorded_failed_and_advances(): void
+    {
+        $reader = new InMemoryReader();
+        $writer = new InMemoryWriter();
+        $ledger = $this->ledger();
+        $m = new MessageMigrator($writer, $ledger, new Logger('error'));
+
+        $header = ['uid' => 99, 'message_id' => '', 'subject' => '', 'from' => '',
+            'size' => 0, 'internal_date' => '', 'flags' => [], 'raw_header' => '', 'fetch_failed' => true];
+
+        $action = $m->migrateOne($reader, 'INBOX', 'INBOX', $header, [], false);
+
+        $this->assertSame('failed', $action);
+        $this->assertCount(0, $writer->appended);
+        $this->assertSame('failed', $ledger->status('INBOX', 99)); // recorded, so scan advances past it
+    }
+
     public function test_oversized_message_is_failed_not_appended(): void
     {
         $reader = new InMemoryReader();

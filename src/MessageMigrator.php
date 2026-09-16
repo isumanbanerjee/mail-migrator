@@ -53,6 +53,14 @@ final class MessageMigrator
             'status' => 'pending',
         ]);
 
+        // The reader couldn't fetch this message's header (a hung/failed source read that it
+        // isolated). Record it failed so the scan advances past it; retry later via the UI.
+        if (!empty($header['fetch_failed'])) {
+            $this->ledger->markFailed($srcFolder, $uid, 'source header fetch failed/timed out');
+            $this->logger->error("Header fetch failed: {$srcFolder} uid {$uid}");
+            return 'failed';
+        }
+
         if ($messageId !== '' && in_array($messageId, $destIndex, true)) {
             $this->ledger->markSkipped($srcFolder, $uid);
             return 'skipped';

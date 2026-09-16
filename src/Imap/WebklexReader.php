@@ -40,67 +40,82 @@ final class WebklexReader implements MailboxReaderInterface
     public function eachHeader(string $folder, callable $cb, int $sinceUid = 0): void
     {
         $f = $this->getFolder($folder);
-        // Resume from where we left off: UID "{sinceUid+1}:*" fetches only messages newer
-        // than the highest one already processed, so a resumed run doesn't re-read the whole
-        // folder every time (which was exhausting the time budget on large folders).
-        $range = $sinceUid > 0 ? (($sinceUid + 1) . ':*') : null;
-        $pageSize = 200;
-        $page = 1;
 
-        while (true) {
-            // Page manually so EACH network fetch is individually timeout-guarded. webklex
-            // reads a byte at a time and can block forever on an SSL socket; without this a
-            // hung header fetch during discovery freezes the whole worker.
-            $messages = Timeout::run($this->opTimeout, function () use ($f, $range, $pageSize, $page) {
-                $q = $f->query()->setFetchBody(false)->setFetchFlags(true);
-                $q = $range !== null ? $q->whereUid($range) : $q->whereAll();
-                return $q->limit($pageSize, $page)->get();
+        // 1) List the UIDs we still need with a cheap SEARCH (no header fetch) so that one
+        //    bad message can't block getting the list. Resume from sinceUid.
+        $criteria = $sinceUid > 0 ? 'UID ' . ($sinceUid + 1) . ':*' : 'ALL';
+        $uids = [];
+        try {
+            $uids = Timeout::run($this->opTimeout, function () use ($criteria) {
+                return (array) $this->client->getConnection()->search([$criteria], IMAP::ST_UID)->validatedData();
             });
-
-            $count = $messages->count();
-            if ($count === 0) {
-                break;
-            }
-
-            foreach ($messages as $message) {
-                $uid = (int) $message->getUid();
-                // "N:*" returns the highest UID even when N is past the end, so drop
-                // anything we've already processed.
-                if ($sinceUid > 0 && $uid <= $sinceUid) {
-                    continue;
-                }
-                $dateAttr = $message->getDate();
-                $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
-
-                $from = $message->getFrom();
-                $fromMail = $from[0]->mail ?? '';
-
-                $messageId = (string) $message->getMessageId();
-                // Only pay for the RFC822.SIZE round-trip when we'll actually need it
-                // (the sha256 dedupe fallback, used only when there is no Message-ID).
-                $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
-
-                // Capture the raw header now so the copy step only needs the body,
-                // not a second full fetch of the message.
-                $header = $message->getHeader();
-
-                $cb([
-                    'uid' => $uid,
-                    'message_id' => $messageId,
-                    'from' => (string) $fromMail,
-                    'subject' => MimeHeader::decode((string) $message->getSubject()),
-                    'size' => $size,
-                    'internal_date' => $internalDate,
-                    'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
-                    'raw_header' => $header !== null ? (string) $header->raw : '',
-                ]);
-            }
-
-            if ($count < $pageSize) {
-                break;
-            }
-            $page++;
+        } catch (Throwable) {
+            return; // couldn't even list; next run will retry
         }
+        $uids = array_values(array_unique(array_map('intval', $uids)));
+        sort($uids);
+        if ($sinceUid > 0) {
+            $uids = array_values(array_filter($uids, static fn ($u) => $u > $sinceUid));
+        }
+
+        // 2) Fetch headers in batches; if a batch times out, retry it one message at a time
+        //    so a single bad message is isolated (yielded as fetch_failed) instead of
+        //    blocking everything after it.
+        foreach (array_chunk($uids, 100) as $batch) {
+            try {
+                $messages = Timeout::run($this->opTimeout, function () use ($f, $batch) {
+                    return $f->query()->whereUidIn($batch)->setFetchBody(false)->setFetchFlags(true)->get();
+                });
+                foreach ($messages as $message) {
+                    $cb($this->headerArray($message));
+                }
+            } catch (Throwable) {
+                foreach ($batch as $uid) {
+                    try {
+                        $message = Timeout::run($this->opTimeout, function () use ($f, $uid) {
+                            return $f->query()->whereUid((string) $uid)->setFetchBody(false)->setFetchFlags(true)->get()->first();
+                        });
+                        $cb($message !== null ? $this->headerArray($message) : $this->failedHeader((int) $uid));
+                    } catch (Throwable) {
+                        $cb($this->failedHeader((int) $uid));
+                    }
+                }
+            }
+        }
+    }
+
+    private function headerArray(object $message): array
+    {
+        $dateAttr = $message->getDate();
+        $internalDate = $dateAttr->has() ? $dateAttr->toDate()->format('d-M-Y H:i:s O') : '';
+        $from = $message->getFrom();
+        $fromMail = $from[0]->mail ?? '';
+        $messageId = (string) $message->getMessageId();
+        // Only pay for the RFC822.SIZE round-trip when we'll actually need it
+        // (the sha256 dedupe fallback, used only when there is no Message-ID).
+        $size = $messageId === '' ? (int) ($message->getSize() ?? 0) : 0;
+        $header = $message->getHeader();
+
+        return [
+            'uid' => (int) $message->getUid(),
+            'message_id' => $messageId,
+            'from' => (string) $fromMail,
+            'subject' => MimeHeader::decode((string) $message->getSubject()),
+            'size' => $size,
+            'internal_date' => $internalDate,
+            'flags' => self::normalizeFlags((array) $message->getFlags()->all()),
+            'raw_header' => $header !== null ? (string) $header->raw : '',
+        ];
+    }
+
+    /** A message whose header couldn't be fetched — the migrator records it failed and moves on. */
+    private function failedHeader(int $uid): array
+    {
+        return [
+            'uid' => $uid, 'message_id' => '', 'from' => '', 'subject' => '',
+            'size' => 0, 'internal_date' => '', 'flags' => [], 'raw_header' => '',
+            'fetch_failed' => true,
+        ];
     }
 
     public function fetchRaw(string $folder, int $uid): string
