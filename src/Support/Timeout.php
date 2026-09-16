@@ -28,9 +28,13 @@ final class Timeout
         }
 
         pcntl_async_signals(true);
+        // restart_syscalls = false is essential: with the default (true) the SIGALRM
+        // handler is installed with SA_RESTART, so an interrupted blocking fread()
+        // auto-restarts and the timeout never breaks the hang. false makes the syscall
+        // return control to PHP so the handler below can throw.
         pcntl_signal(SIGALRM, static function (): void {
             throw new TimeoutException('operation timed out');
-        });
+        }, false);
         pcntl_alarm($seconds);
         try {
             return $fn();
