@@ -50,24 +50,25 @@ final class MigrationRunner
         foreach ($folders as $srcFolder) {
             $folderCount++;
             $destFolder = $this->mapper->map($srcFolder);
-            // Check before recordFolder/eachHeader touch the ledger for this folder.
-            $alreadyScanned = $this->ledger->folderScanned($srcFolder);
-            $this->ledger->recordFolder($srcFolder, $destFolder, $this->reader->folderUidValidity($srcFolder));
-
-            if (!$dryRun) {
-                $this->writer->ensureFolder($destFolder);
-            }
-            // Scanning the whole destination for existing message-ids is expensive and only
-            // needed the first time we touch a folder (to dedupe against mail already there).
-            // On resumed runs the ledger already tracks what we copied, so skip the rescan —
-            // this is the difference between a fast resume and re-reading the entire mailbox
-            // every cron tick.
-            $destIndex = $alreadyScanned ? [] : $this->writer->existingMessageIds($destFolder);
-
-            // Resume from the highest UID already recorded so we don't re-read the whole
-            // folder on every run (which stalled large folders before they could advance).
-            $sinceUid = $this->ledger->maxProcessedUid($srcFolder);
+            // Any IMAP op below (folder status, create, destination scan, header scan) can
+            // time out on a hung SSL read. Keep it per-folder: a timeout skips this folder
+            // for now and the next run resumes it — it never fails the whole job.
             try {
+                // Check before recordFolder/eachHeader touch the ledger for this folder.
+                $alreadyScanned = $this->ledger->folderScanned($srcFolder);
+                $this->ledger->recordFolder($srcFolder, $destFolder, $this->reader->folderUidValidity($srcFolder));
+
+                if (!$dryRun) {
+                    $this->writer->ensureFolder($destFolder);
+                }
+                // Scanning the whole destination for existing message-ids is expensive and only
+                // needed the first time we touch a folder (to dedupe against mail already there).
+                // On resumed runs the ledger already tracks what we copied, so skip the rescan.
+                $destIndex = $alreadyScanned ? [] : $this->writer->existingMessageIds($destFolder);
+
+                // Resume from the highest UID already recorded so we don't re-read the whole
+                // folder on every run (which stalled large folders before they could advance).
+                $sinceUid = $this->ledger->maxProcessedUid($srcFolder);
                 $this->reader->eachHeader($srcFolder, function (array $header) use (
                     $srcFolder, $destFolder, $destIndex, $dryRun, $sinceTs, $limit, $throttle, $progress
                 ) {
@@ -98,9 +99,10 @@ final class MigrationRunner
                 }
                 }, $sinceUid);
             } catch (TimeoutException $e) {
-                // A hung read during discovery — don't fail the whole job. Skip the rest of
-                // this folder for now; the next run resumes it from the last recorded UID.
-                $this->logger->warn("Discovery timed out on {$srcFolder}; resuming next run: " . $e->getMessage());
+                // A hung IMAP op on this folder — don't fail the whole job. Skip to the next
+                // folder; the next run resumes this one from the last recorded UID.
+                $this->logger->warn("Timed out on folder {$srcFolder}; resuming next run: " . $e->getMessage());
+                continue;
             }
         }
 

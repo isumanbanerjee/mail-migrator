@@ -10,6 +10,7 @@ use EmailMigration\Ledger\LedgerInterface;
 use EmailMigration\MessageMigrator;
 use EmailMigration\MigrationRunner;
 use EmailMigration\Support\Logger;
+use EmailMigration\Support\TimeoutException;
 
 final class JobRunner
 {
@@ -80,6 +81,11 @@ final class JobRunner
             return 'completed';
         } catch (StopSignal $s) {
             return $this->handleStop($jobId, $s->reason);
+        } catch (TimeoutException $e) {
+            // A hung IMAP op is transient — requeue so the next run resumes, don't fail.
+            $this->jobs->systemTransition($jobId, 'queued');
+            $this->jobs->releaseLock($jobId);
+            return 'queued';
         } catch (\Throwable $e) {
             $this->jobs->systemTransition($jobId, 'failed', $e->getMessage());
             $this->jobs->releaseLock($jobId);
