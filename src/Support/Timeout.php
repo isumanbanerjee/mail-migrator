@@ -11,6 +11,22 @@ final class TimeoutException extends RuntimeException {}
 final class Timeout
 {
     /**
+     * True if $e is a TimeoutException or wraps one anywhere in its chain. Needed because
+     * webklex catches our TimeoutException mid-fetch and rethrows it as its own
+     * GetMessagesFailedException (chaining the original via getPrevious), which would
+     * otherwise hide the timeout from `catch (TimeoutException)`.
+     */
+    public static function isTimeout(\Throwable $e): bool
+    {
+        for ($cur = $e; $cur !== null; $cur = $cur->getPrevious()) {
+            if ($cur instanceof TimeoutException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Run $fn, aborting with a TimeoutException if it takes longer than $seconds.
      *
      * Uses pcntl_alarm (SIGALRM) which, unlike stream_set_timeout, reliably

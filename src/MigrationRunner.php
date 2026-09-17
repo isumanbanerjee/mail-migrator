@@ -7,7 +7,7 @@ use EmailMigration\Ledger\LedgerInterface;
 use EmailMigration\Mailbox\MailboxReaderInterface;
 use EmailMigration\Mailbox\MailboxWriterInterface;
 use EmailMigration\Support\Logger;
-use EmailMigration\Support\TimeoutException;
+use EmailMigration\Support\Timeout;
 
 final class MigrationRunner
 {
@@ -98,9 +98,14 @@ final class MigrationRunner
                     ]);
                 }
                 }, $sinceUid);
-            } catch (TimeoutException $e) {
-                // A hung IMAP op on this folder — don't fail the whole job. Skip to the next
-                // folder; the next run resumes this one from the last recorded UID.
+            } catch (\Throwable $e) {
+                // A hung IMAP op on this folder (possibly wrapped by webklex) — don't fail the
+                // whole job. Skip to the next folder; the next run resumes this one from the
+                // last recorded UID. Anything that isn't a timeout (e.g. a StopSignal for the
+                // time budget / pause / cancel, or a real bug) must propagate.
+                if (!Timeout::isTimeout($e)) {
+                    throw $e;
+                }
                 $this->logger->warn("Timed out on folder {$srcFolder}; resuming next run: " . $e->getMessage());
                 continue;
             }

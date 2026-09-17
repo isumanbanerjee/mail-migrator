@@ -10,7 +10,7 @@ use EmailMigration\Ledger\LedgerInterface;
 use EmailMigration\MessageMigrator;
 use EmailMigration\MigrationRunner;
 use EmailMigration\Support\Logger;
-use EmailMigration\Support\TimeoutException;
+use EmailMigration\Support\Timeout;
 
 final class JobRunner
 {
@@ -81,12 +81,14 @@ final class JobRunner
             return 'completed';
         } catch (StopSignal $s) {
             return $this->handleStop($jobId, $s->reason);
-        } catch (TimeoutException $e) {
-            // A hung IMAP op is transient — requeue so the next run resumes, don't fail.
-            $this->jobs->systemTransition($jobId, 'queued');
-            $this->jobs->releaseLock($jobId);
-            return 'queued';
         } catch (\Throwable $e) {
+            // A hung IMAP op is transient (webklex may wrap our TimeoutException in its own
+            // exception) — requeue so the next run resumes instead of failing the job.
+            if (Timeout::isTimeout($e)) {
+                $this->jobs->systemTransition($jobId, 'queued');
+                $this->jobs->releaseLock($jobId);
+                return 'queued';
+            }
             $this->jobs->systemTransition($jobId, 'failed', $e->getMessage());
             $this->jobs->releaseLock($jobId);
             return 'failed';
