@@ -2,6 +2,7 @@
     "name": "sumanbanerjee/mailmigrator-engine",
     "description": "MailMigrator — resumable IMAP-to-IMAP email migration engine",
     "type": "library",
+    "license": "Apache-2.0",
     "require": {
         "php": ">=8.5",
         "ext-pdo": "*",

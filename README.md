@@ -2,7 +2,7 @@
 
 **Self-hosted IMAP-to-IMAP email migration tool.** Move a mailbox from one mail server to another — Gmail, Microsoft 365, cPanel/Dovecot, Zoho, Yahoo, or any IMAP host — without losing dates, folders, or read/unread state, and without ever deleting from the source.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![PHP 8.5+](https://img.shields.io/badge/PHP-8.5%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
 ![Framework: none](https://img.shields.io/badge/framework-none-lightgrey)
 ![Tests: PHPUnit](https://img.shields.io/badge/tests-PHPUnit-brightgreen)
@@ -178,7 +178,7 @@ No. The web app runs on shared hosting with a cron job, and the CLI runs anywher
 Enable IMAP in Gmail's settings and create an app password (you'll need 2-Step Verification on). Use that app password instead of the normal one.
 
 **Is it free?**
-The software is open source (MIT) and free to run. The built-in paywall is only there if you want to charge other people for migrations you run for them.
+The software is open source (Apache-2.0) and free to run. The built-in paywall is only there if you want to charge other people for migrations you run for them.
 
 ## Contributing
 
@@ -190,8 +190,10 @@ If MailMigrator helps you — whether for a personal migration, an internal tool
 
 > Powered by [MailMigrator](https://github.com/isumanbanerjee/email-migration) by Suman Banerjee.
 
-Attribution is a courtesy request, not a legal condition — the [MIT License](#license) only asks that you keep the copyright and license notice. But if you use it commercially, a credit (in your footer, docs, or an "about" page), a ⭐ on the repo, or simply telling me where it's running all help the project reach more people.
+Note that the [Apache-2.0 License](#license) already **requires** you to retain the copyright notice and the [`NOTICE`](NOTICE) file when you redistribute the software or a derivative of it. Beyond that legal minimum, a visible credit (in your footer, docs, or an "about" page), a ⭐ on the repo, or simply telling me where it's running all help the project reach more people.
 
 ## License
 
-Released under the [MIT License](LICENSE). Copyright © Suman Banerjee.
+Released under the [Apache License 2.0](LICENSE). Copyright © 2026 Suman Banerjee.
+
+Apache-2.0 is permissive and business-friendly: you can use, modify, and distribute it — including in commercial and closed-source products — provided you retain the license, copyright, and [`NOTICE`](NOTICE) attribution and state significant changes. It also includes an explicit patent grant protecting you and your users.
