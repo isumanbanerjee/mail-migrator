@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Imap;
+namespace MailMigrator\Tests\Imap;
 
-use EmailMigration\Imap\WebklexReader;
+use MailMigrator\Imap\WebklexReader;
 use PHPUnit\Framework\TestCase;
 
 final class NormalizeFlagsTest extends TestCase

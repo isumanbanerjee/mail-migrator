@@ -1,6 +1,6 @@
 {
-    "name": "sumanbanerjee/email-migration-engine",
-    "description": "Resumable IMAP-to-IMAP email migration engine",
+    "name": "sumanbanerjee/mailmigrator-engine",
+    "description": "MailMigrator — resumable IMAP-to-IMAP email migration engine",
     "type": "library",
     "require": {
         "php": ">=8.5",
@@ -15,9 +15,9 @@
         "phpunit/phpunit": "^11.0"
     },
     "autoload": {
-        "psr-4": { "EmailMigration\\": "src/", "App\\": "app/" }
+        "psr-4": { "MailMigrator\\": "src/", "App\\": "app/" }
     },
     "autoload-dev": {
-        "psr-4": { "EmailMigration\\Tests\\": "tests/", "App\\Tests\\": "tests/App/" }
+        "psr-4": { "MailMigrator\\Tests\\": "tests/", "App\\Tests\\": "tests/App/" }
     }
 }

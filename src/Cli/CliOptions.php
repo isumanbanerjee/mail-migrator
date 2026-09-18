@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Cli;
+namespace MailMigrator\Cli;
 
 final class CliOptions
 {

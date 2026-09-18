@@ -5,7 +5,7 @@ namespace App\Tests\Services;
 
 use App\Services\ConnectionTester;
 use App\Tests\Fakes\FakeConnectionChecker;
-use EmailMigration\FolderMapper;
+use MailMigrator\FolderMapper;
 use PHPUnit\Framework\TestCase;
 
 final class ConnectionTesterTest extends TestCase

@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests;
+namespace MailMigrator\Tests;
 
-use EmailMigration\FolderMapper;
-use EmailMigration\Ledger\SqliteLedger;
-use EmailMigration\MessageMigrator;
-use EmailMigration\MigrationRunner;
-use EmailMigration\Support\Logger;
-use EmailMigration\Tests\Fakes\InMemoryReader;
-use EmailMigration\Tests\Fakes\InMemoryWriter;
+use MailMigrator\FolderMapper;
+use MailMigrator\Ledger\SqliteLedger;
+use MailMigrator\MessageMigrator;
+use MailMigrator\MigrationRunner;
+use MailMigrator\Support\Logger;
+use MailMigrator\Tests\Fakes\InMemoryReader;
+use MailMigrator\Tests\Fakes\InMemoryWriter;
 use PDO;
 use PHPUnit\Framework\TestCase;
 

@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration;
+namespace MailMigrator;
 
-use EmailMigration\Ledger\LedgerInterface;
-use EmailMigration\Mailbox\MailboxReaderInterface;
-use EmailMigration\Mailbox\MailboxWriterInterface;
-use EmailMigration\Support\Logger;
-use EmailMigration\Support\Timeout;
+use MailMigrator\Ledger\LedgerInterface;
+use MailMigrator\Mailbox\MailboxReaderInterface;
+use MailMigrator\Mailbox\MailboxWriterInterface;
+use MailMigrator\Support\Logger;
+use MailMigrator\Support\Timeout;
 
 final class MigrationRunner
 {

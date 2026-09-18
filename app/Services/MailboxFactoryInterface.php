@@ -5,6 +5,6 @@ namespace App\Services;
 
 interface MailboxFactoryInterface
 {
-    /** @return array{reader:\EmailMigration\Mailbox\MailboxReaderInterface,writer:\EmailMigration\Mailbox\MailboxWriterInterface} */
+    /** @return array{reader:\MailMigrator\Mailbox\MailboxReaderInterface,writer:\MailMigrator\Mailbox\MailboxWriterInterface} */
     public function forJob(array $job): array;
 }

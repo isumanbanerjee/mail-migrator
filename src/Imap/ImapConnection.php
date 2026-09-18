@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Imap;
+namespace MailMigrator\Imap;
 
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;

@@ -14,7 +14,7 @@ use App\Support\Response;
 use App\Support\Session;
 use App\Support\Validator;
 use App\Support\View;
-use EmailMigration\FolderMapper;
+use MailMigrator\FolderMapper;
 
 final class JobController
 {

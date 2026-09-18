@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests;
+namespace MailMigrator\Tests;
 
 use PHPUnit\Framework\TestCase;
 

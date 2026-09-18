@@ -10,8 +10,8 @@ use App\Support\Migrator;
 use App\Support\MysqlLedger;
 use App\Tests\Fakes\FakeMailboxFactory;
 use App\Tests\TestCase;
-use EmailMigration\Tests\Fakes\InMemoryReader;
-use EmailMigration\Tests\Fakes\InMemoryWriter;
+use MailMigrator\Tests\Fakes\InMemoryReader;
+use MailMigrator\Tests\Fakes\InMemoryWriter;
 
 final class JobRunnerTest extends TestCase
 {

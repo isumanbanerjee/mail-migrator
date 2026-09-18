@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Fakes;
+namespace MailMigrator\Tests\Fakes;
 
-use EmailMigration\Mailbox\MailboxWriterInterface;
+use MailMigrator\Mailbox\MailboxWriterInterface;
 
 final class InMemoryWriter implements MailboxWriterInterface
 {

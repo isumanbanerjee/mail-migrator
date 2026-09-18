@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use EmailMigration\Imap\ImapConnection;
-use EmailMigration\Imap\WebklexReader;
+use MailMigrator\Imap\ImapConnection;
+use MailMigrator\Imap\WebklexReader;
 
 final class ImapConnectionChecker implements ConnectionCheckerInterface
 {

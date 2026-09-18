@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Support;
+namespace MailMigrator\Tests\Support;
 
-use EmailMigration\Support\MimeHeader;
+use MailMigrator\Support\MimeHeader;
 use PHPUnit\Framework\TestCase;
 
 final class MimeHeaderTest extends TestCase

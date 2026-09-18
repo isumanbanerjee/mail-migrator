@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Imap;
+namespace MailMigrator\Imap;
 
-use EmailMigration\Mailbox\MailboxReaderInterface;
-use EmailMigration\Support\MimeHeader;
-use EmailMigration\Support\Timeout;
+use MailMigrator\Mailbox\MailboxReaderInterface;
+use MailMigrator\Support\MimeHeader;
+use MailMigrator\Support\Timeout;
 use RuntimeException;
 use Throwable;
 use Webklex\PHPIMAP\Client;

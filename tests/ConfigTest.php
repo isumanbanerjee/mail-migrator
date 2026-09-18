@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests;
+namespace MailMigrator\Tests;
 
-use EmailMigration\Config;
+use MailMigrator\Config;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 

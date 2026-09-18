@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Support;
+namespace MailMigrator\Tests\Support;
 
-use EmailMigration\Support\Logger;
+use MailMigrator\Support\Logger;
 use PHPUnit\Framework\TestCase;
 
 final class LoggerTest extends TestCase

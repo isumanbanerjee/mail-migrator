@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Ledger;
+namespace MailMigrator\Tests\Ledger;
 
-use EmailMigration\Ledger\SqliteLedger;
+use MailMigrator\Ledger\SqliteLedger;
 use PDO;
 use PHPUnit\Framework\TestCase;
 

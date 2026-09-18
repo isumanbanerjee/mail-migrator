@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests;
+namespace MailMigrator\Tests;
 
-use EmailMigration\FolderMapper;
+use MailMigrator\FolderMapper;
 use PHPUnit\Framework\TestCase;
 
 final class FolderMapperTest extends TestCase

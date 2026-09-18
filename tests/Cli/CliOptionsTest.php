@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Cli;
+namespace MailMigrator\Tests\Cli;
 
-use EmailMigration\Cli\CliOptions;
+use MailMigrator\Cli\CliOptions;
 use PHPUnit\Framework\TestCase;
 
 final class CliOptionsTest extends TestCase

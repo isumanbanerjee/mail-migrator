@@ -3,16 +3,16 @@ declare(strict_types=1);
 
 require __DIR__ . '/vendor/autoload.php';
 
-use EmailMigration\Cli\CliOptions;
-use EmailMigration\Config;
-use EmailMigration\FolderMapper;
-use EmailMigration\Imap\ImapConnection;
-use EmailMigration\Imap\WebklexReader;
-use EmailMigration\Imap\WebklexWriter;
-use EmailMigration\Ledger\SqliteLedger;
-use EmailMigration\MessageMigrator;
-use EmailMigration\MigrationRunner;
-use EmailMigration\Support\Logger;
+use MailMigrator\Cli\CliOptions;
+use MailMigrator\Config;
+use MailMigrator\FolderMapper;
+use MailMigrator\Imap\ImapConnection;
+use MailMigrator\Imap\WebklexReader;
+use MailMigrator\Imap\WebklexWriter;
+use MailMigrator\Ledger\SqliteLedger;
+use MailMigrator\MessageMigrator;
+use MailMigrator\MigrationRunner;
+use MailMigrator\Support\Logger;
 
 $opts = CliOptions::parse($argv);
 $logger = new Logger($opts['verbose'] ? 'debug' : 'info', 'migration.log');

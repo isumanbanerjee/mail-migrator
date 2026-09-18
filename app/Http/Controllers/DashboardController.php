@@ -58,7 +58,7 @@ final class DashboardController
             return [
                 'folder' => (string) $m['source_folder'],
                 'uid' => (int) $m['source_uid'],
-                'subject' => \EmailMigration\Support\MimeHeader::decode((string) ($m['subject'] ?? '')),
+                'subject' => \MailMigrator\Support\MimeHeader::decode((string) ($m['subject'] ?? '')),
                 'message_id' => (string) ($m['message_id'] ?? ''),
                 'sent_date' => $sent,
                 'size' => (int) ($m['size_bytes'] ?? 0),

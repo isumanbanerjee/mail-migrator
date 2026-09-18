@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Support\Encryptor;
-use EmailMigration\Imap\ImapConnection;
-use EmailMigration\Imap\WebklexReader;
-use EmailMigration\Imap\WebklexWriter;
-use EmailMigration\Support\Logger;
+use MailMigrator\Imap\ImapConnection;
+use MailMigrator\Imap\WebklexReader;
+use MailMigrator\Imap\WebklexWriter;
+use MailMigrator\Support\Logger;
 
 final class WebklexMailboxFactory implements MailboxFactoryInterface
 {

@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Support;
+namespace MailMigrator\Tests\Support;
 
-use EmailMigration\Support\Timeout;
-use EmailMigration\Support\TimeoutException;
+use MailMigrator\Support\Timeout;
+use MailMigrator\Support\TimeoutException;
 use PHPUnit\Framework\TestCase;
 
 final class TimeoutTest extends TestCase

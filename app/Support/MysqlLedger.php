@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use EmailMigration\Ledger\LedgerInterface;
+use MailMigrator\Ledger\LedgerInterface;
 use PDO;
 
 final class MysqlLedger implements LedgerInterface

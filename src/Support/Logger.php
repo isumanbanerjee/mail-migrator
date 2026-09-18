@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Support;
+namespace MailMigrator\Support;
 
 final class Logger
 {

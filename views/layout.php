@@ -7,14 +7,14 @@ $navUser = $currentUser ?? null;
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= isset($title) ? $e($title) : 'Email Migration' ?></title>
+  <title><?= isset($title) ? $e($title) : 'MailMigrator' ?></title>
   <link rel="stylesheet" href="/assets/app.css">
   <script defer src="/assets/alpine.min.js"></script>
 </head>
 <body>
   <nav class="site-nav">
     <div class="site-nav__inner">
-      <a class="site-nav__brand" href="<?= $navUser ? '/dashboard' : '/login' ?>">Email Migration</a>
+      <a class="site-nav__brand" href="<?= $navUser ? '/dashboard' : '/login' ?>">MailMigrator</a>
       <div class="site-nav__links">
         <?php if ($navUser): ?>
           <a href="/dashboard">Dashboard</a>

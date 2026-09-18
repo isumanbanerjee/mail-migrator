@@ -5,12 +5,12 @@ namespace App\Services;
 
 use App\Repositories\JobRepository;
 use App\Support\StopSignal;
-use EmailMigration\FolderMapper;
-use EmailMigration\Ledger\LedgerInterface;
-use EmailMigration\MessageMigrator;
-use EmailMigration\MigrationRunner;
-use EmailMigration\Support\Logger;
-use EmailMigration\Support\Timeout;
+use MailMigrator\FolderMapper;
+use MailMigrator\Ledger\LedgerInterface;
+use MailMigrator\MessageMigrator;
+use MailMigrator\MigrationRunner;
+use MailMigrator\Support\Logger;
+use MailMigrator\Support\Timeout;
 
 final class JobRunner
 {

@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration;
+namespace MailMigrator;
 
-use EmailMigration\Ledger\LedgerInterface;
-use EmailMigration\Mailbox\MailboxReaderInterface;
-use EmailMigration\Mailbox\MailboxWriterInterface;
-use EmailMigration\Support\Logger;
+use MailMigrator\Ledger\LedgerInterface;
+use MailMigrator\Mailbox\MailboxReaderInterface;
+use MailMigrator\Mailbox\MailboxWriterInterface;
+use MailMigrator\Support\Logger;
 
 final class MessageMigrator
 {

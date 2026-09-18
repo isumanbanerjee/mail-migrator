@@ -78,7 +78,7 @@ Two things are on you: serve the app over HTTPS, and keep `.env` out of the web 
 ## Architecture
 
 ```
-src/                    migration engine (framework-agnostic, EmailMigration\)
+src/                    migration engine (framework-agnostic, MailMigrator\)
 app/                    the web application (App\): router, controllers,
                         repositories, services, auth, billing
 bin/worker.php          cron worker that runs and resumes jobs

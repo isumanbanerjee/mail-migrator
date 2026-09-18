@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace EmailMigration\Tests\Fakes;
+namespace MailMigrator\Tests\Fakes;
 
-use EmailMigration\Mailbox\MailboxReaderInterface;
+use MailMigrator\Mailbox\MailboxReaderInterface;
 
 final class InMemoryReader implements MailboxReaderInterface
 {

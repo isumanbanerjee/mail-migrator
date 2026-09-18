@@ -16,7 +16,7 @@ will fail during `composer install` or at runtime. If your host only offers
 ## 2. Create a MySQL database and user
 
 1. In the panel's "MySQL Databases" tool, create a new database, e.g.
-   `youracct_emailmigration`.
+   `youracct_mailmigrator`.
 2. Create a database user with a strong, generated password.
 3. Add the user to the database with **all privileges**.
 4. Note the host (usually `localhost` or `127.0.0.1`), database name,
@@ -43,7 +43,7 @@ to the host. Two common approaches:
 
 Either way, end up with the full repo — including `vendor/`, `app/`, `views/`,
 `public/`, `database/`, `config/`, `bin/`, and this `docs/` folder — under one
-directory on the host (e.g. `~/email-migration/`).
+directory on the host (e.g. `~/mailmigrator/`).
 
 ## 4. Configure `.env` and generate `APP_KEY`
 
@@ -62,7 +62,7 @@ APP_URL=https://your-domain.example
 DB_DRIVER=mysql
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=youracct_emailmigration
+DB_DATABASE=youracct_mailmigrator
 DB_USERNAME=youracct_dbuser
 DB_PASSWORD=your-generated-password
 ```
@@ -102,7 +102,7 @@ under `public/` (including `public/assets/app.css` and
 
 - **Preferred:** if your host lets you set a custom document root per
   domain/subdomain, point it at the `public/` subdirectory of the uploaded
-  repo (e.g. `~/email-migration/public`). This is the most robust option —
+  repo (e.g. `~/mailmigrator/public`). This is the most robust option —
   everything outside `public/` (source code, `vendor/`, `.env`, migrations,
   tests) is then simply outside the web server's document root and cannot be
   requested at all.
@@ -128,7 +128,7 @@ Before relying on the admin in production:
    993 (and 143 if you use STARTTLS) is open, or whether IMAP traffic must go
    through a specific egress IP that needs mail-server-side allowlisting.
 3. As a workaround on hosts that block it entirely, run the CLI migration
-   tool (`migrate.php` at the repo root — the standalone email migration
+   tool (`migrate.php` at the repo root — the standalone MailMigrator
    engine, not `bin/migrate.php`) from a machine/VPS with unrestricted
    outbound access instead of from the shared host.
 
