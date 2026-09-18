@@ -40,6 +40,7 @@ Use it two ways: a **command-line tool** for moving one or two accounts, or a **
 - [Tech stack](#tech-stack)
 - [FAQ](#faq)
 - [Contributing](#contributing)
+- [Credits & attribution](#credits--attribution)
 - [License](#license)
 
 ## Features
@@ -182,6 +183,14 @@ The software is open source (MIT) and free to run. The built-in paywall is only 
 ## Contributing
 
 Issues and pull requests are welcome. Please run the test suite (`composer test`) before opening a PR, and keep changes focused. Bug reports that include the provider pair (source → destination) and any relevant log output are the easiest to act on.
+
+## Credits & attribution
+
+If MailMigrator helps you — whether for a personal migration, an internal tool, or a commercial/business project — please give credit. A visible mention and a link back to this repository is genuinely appreciated:
+
+> Powered by [MailMigrator](https://github.com/isumanbanerjee/email-migration) by Suman Banerjee.
+
+Attribution is a courtesy request, not a legal condition — the [MIT License](#license) only asks that you keep the copyright and license notice. But if you use it commercially, a credit (in your footer, docs, or an "about" page), a ⭐ on the repo, or simply telling me where it's running all help the project reach more people.
 
 ## License
 
