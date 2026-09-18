@@ -28,3 +28,8 @@ public/assets/*.map
 # Local deploy bundle (may contain a real .env)
 upload.zip
 deploy.zip
+
+# Local secrets — never commit
+DONOTUPLOADSFTPCREDS.TXT.php
+*CREDS*
+*.creds
