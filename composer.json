@@ -19,5 +19,8 @@
     },
     "autoload-dev": {
         "psr-4": { "MailMigrator\\Tests\\": "tests/", "App\\Tests\\": "tests/App/" }
+    },
+    "scripts": {
+        "test": "phpunit"
     }
 }
